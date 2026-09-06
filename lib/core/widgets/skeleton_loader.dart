@@ -97,14 +97,27 @@ class SkeletonCardGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-        count,
-        (index) => Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
-          child: SkeletonLoader.card(height: height),
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int effectiveCount = count;
+        if (constraints.maxHeight.isFinite && constraints.maxHeight > 0) {
+          final computed = (constraints.maxHeight / (height + 12.0)).floor();
+          effectiveCount = computed > 0 ? computed : 1;
+        }
+        return SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(
+              effectiveCount,
+              (index) => Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: SkeletonLoader.card(height: height),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

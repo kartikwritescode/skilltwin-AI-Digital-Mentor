@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../providers/mentor_provider.dart';
 import '../../../../core/models/mentor_message.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
@@ -232,52 +233,102 @@ class _MessageBubble extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isMentor) ...[
-                const CircleAvatar(
-                  backgroundColor: Colors.orange,
-                  radius: 16,
-                  child: Icon(Icons.assistant, size: 18, color: Colors.white),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFF6D00),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.assistant, size: 18, color: Colors.white),
+                  ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
               ],
               Flexible(
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: isMentor ? Colors.white : Colors.orange,
+                    color: isMentor ? Colors.white : const Color(0xFFFF6D00),
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(20),
-                      topRight: const Radius.circular(20),
-                      bottomLeft: Radius.circular(isMentor ? 0 : 20),
-                      bottomRight: Radius.circular(isMentor ? 20 : 0),
+                      topLeft: const Radius.circular(18),
+                      topRight: const Radius.circular(18),
+                      bottomLeft: Radius.circular(isMentor ? 4 : 18),
+                      bottomRight: Radius.circular(isMentor ? 18 : 4),
                     ),
-                    boxShadow: isMentor
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              offset: const Offset(0, 2),
-                              blurRadius: 4,
-                            )
-                          ]
-                        : [],
+                    border: isMentor ? Border.all(color: Colors.black.withOpacity(0.06)) : null,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(isMentor ? 0.04 : 0.12),
+                        offset: const Offset(0, 2),
+                        blurRadius: 6,
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    message.text,
-                    style: TextStyle(
-                      color: isMentor ? Colors.black87 : Colors.white,
-                      fontSize: 16,
-                      height: 1.4,
-                    ),
-                  ),
+                  child: isMentor
+                      ? MarkdownBody(
+                          data: message.text,
+                          selectable: true,
+                          styleSheet: MarkdownStyleSheet(
+                            p: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 15,
+                              height: 1.45,
+                            ),
+                            strong: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            h1: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                            h2: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            h3: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                            code: TextStyle(
+                              backgroundColor: Colors.grey.shade100,
+                              color: const Color(0xFFD84315),
+                              fontSize: 13.5,
+                              fontFamily: 'monospace',
+                            ),
+                            codeblockDecoration: BoxDecoration(
+                              color: const Color(0xFF1E1E1E),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            blockquote: TextStyle(
+                              color: Colors.grey.shade800,
+                              fontStyle: FontStyle.italic,
+                            ),
+                            listBullet: const TextStyle(
+                              color: Color(0xFFFF6D00),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          message.text,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                 ),
               ),
-              if (!isMentor) ...[
-                const SizedBox(width: 8),
-                const CircleAvatar(
-                  backgroundColor: Colors.grey,
-                  radius: 16,
-                  child: Icon(Icons.person, size: 18, color: Colors.white),
-                ),
-              ],
             ],
           ),
           if (isMentor && (message.actionType != null || message.whyContext != null))

@@ -37,7 +37,25 @@ class SessionsRepositoryImpl implements SessionsRepository {
   @override
   Future<SessionResult> completeSession(String sessionId, Map<String, dynamic> evidence) async {
     try {
-      final response = await _apiClient.post('/sessions/$sessionId/complete', data: evidence);
+      final stepResponses = evidence.entries.map((e) => {
+        'step_id': e.key,
+        'response': e.value?.toString() ?? '',
+      }).toList();
+
+      final userSubmissionSummary = evidence.entries
+          .where((e) => e.value != null && e.value.toString().trim().isNotEmpty)
+          .map((e) => 'Step ${e.key}: ${e.value}')
+          .join('\n');
+
+      final payload = {
+        'user_submission': userSubmissionSummary,
+        'step_responses': stepResponses,
+        'time_spent_seconds': 300,
+        'self_reported_confidence': 75.0,
+        ...evidence,
+      };
+
+      final response = await _apiClient.post('/sessions/$sessionId/complete', data: payload);
       return SessionResult.fromJson(response.data);
     } catch (_) {
       return _fallback.completeSession(sessionId, evidence);

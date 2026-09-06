@@ -25,7 +25,7 @@ class SessionResultScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 40),
-          _ResultHeader(theme: theme),
+          _ResultHeader(theme: theme, result: result),
           const SizedBox(height: 40),
           
           // Absolute States
@@ -48,6 +48,10 @@ class SessionResultScreen extends ConsumerWidget {
           _FocusAreasList(result: result),
           const SizedBox(height: 32),
           _MentorRecommendation(result: result, theme: theme),
+          if (result.stepEvaluations.isNotEmpty) ...[
+            const SizedBox(height: 32),
+            _StepEvaluationsList(result: result),
+          ],
           const SizedBox(height: 48),
           Row(
             children: [
@@ -99,31 +103,50 @@ class SessionResultScreen extends ConsumerWidget {
 
 class _ResultHeader extends StatelessWidget {
   final ThemeData theme;
-  const _ResultHeader({required this.theme});
+  final SessionResult result;
+
+  const _ResultHeader({required this.theme, required this.result});
 
   @override
   Widget build(BuildContext context) {
+    final isLowScore = result.accuracyScore < 0.4 || result.masteryDelta <= 0;
+    final isModerate = result.accuracyScore >= 0.4 && result.accuracyScore < 0.75;
+    
+    final iconColor = isLowScore ? Colors.amber.shade700 : (isModerate ? Colors.orange : Colors.green);
+    final bgColor = isLowScore ? Colors.amber.shade50 : (isModerate ? Colors.orange.shade50 : Colors.green.shade50);
+    final icon = isLowScore ? Icons.error_outline_rounded : (isModerate ? Icons.lightbulb_outline_rounded : Icons.verified_rounded);
+    
+    final title = isLowScore 
+        ? 'Session Reviewed' 
+        : (isModerate ? 'Good Practice Attempt' : 'Mastery Demonstrated');
+
+    final subtitle = isLowScore
+        ? 'Gaps were detected. Review the correct answers below and revise this concept.'
+        : (isModerate
+            ? 'Progress logged. Address the focus areas to cement permanent retention.'
+            : 'Your AI Mentor has verified your conceptual mastery and updated your Learner Twin.');
+
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.green.shade50,
+            color: bgColor,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.verified, color: Colors.green, size: 48),
+          child: Icon(icon, color: iconColor, size: 48),
         ),
         const SizedBox(height: 24),
         Text(
-          'Session Evaluated',
+          title,
           textAlign: TextAlign.center,
           style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold, letterSpacing: -0.5),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Your AI Mentor has updated your Learner Twin with new evidence.',
+        Text(
+          subtitle,
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey, fontSize: 15),
+          style: const TextStyle(color: Colors.grey, fontSize: 15, height: 1.4),
         ),
       ],
     );
@@ -352,3 +375,201 @@ class _MentorRecommendation extends StatelessWidget {
     );
   }
 }
+
+class _StepEvaluationsList extends StatelessWidget {
+  final SessionResult result;
+
+  const _StepEvaluationsList({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.quiz_outlined, size: 18, color: Colors.orange),
+            SizedBox(width: 8),
+            Text(
+              'STEP-BY-STEP REVIEW & CORRECT ANSWERS',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+                letterSpacing: 1.1,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ...result.stepEvaluations.asMap().entries.map((entry) {
+          final index = entry.key + 1;
+          final step = entry.value;
+          final isCorrect = step.isCorrect;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isCorrect
+                    ? Colors.green.withValues(alpha: 0.3)
+                    : Colors.red.withValues(alpha: 0.25),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isCorrect ? Colors.green.shade50 : Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                            size: 14,
+                            color: isCorrect ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isCorrect ? 'CORRECT' : 'NEEDS WORK',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isCorrect ? Colors.green.shade700 : Colors.red.shade700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Step $index',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+                if (step.question.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    step.question,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Your Answer: ',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              step.userAnswer.isNotEmpty ? step.userAnswer : '[Unanswered]',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isCorrect ? Colors.black87 : Colors.red.shade700,
+                                fontWeight: isCorrect ? FontWeight.normal : FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (!isCorrect && step.correctAnswer.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Correct Answer: ',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                step.correctAnswer,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (step.explanation.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline, size: 15, color: Colors.orange),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          step.explanation,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.4,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+

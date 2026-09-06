@@ -165,5 +165,7 @@ class Goal {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  double get progressPercent => progress > 1.0 ? progress : progress * 100.0;
 }
 

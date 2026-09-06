@@ -14,9 +14,13 @@ class MentorRepositoryImpl implements MentorRepository {
     try {
       final response = await _apiClient.get('/mentor/today');
       if (response.data is List) {
-        return (response.data as List).map((e) => MentorMessage.fromJson(e)).toList();
+        return (response.data as List)
+            .map((e) => MentorMessage.fromJson(e))
+            .where((m) => m.text.trim().isNotEmpty)
+            .toList();
       } else if (response.data is Map<String, dynamic>) {
-        return [MentorMessage.fromJson(response.data)];
+        final msg = MentorMessage.fromJson(response.data);
+        return msg.text.trim().isNotEmpty ? [msg] : [];
       }
       return _fallback.getDailyMentorBriefing();
     } catch (_) {

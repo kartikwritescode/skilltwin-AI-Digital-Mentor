@@ -24,16 +24,19 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     final rawName = json['full_name'] ?? json['display_name'] ?? json['name'] ?? '';
+    final prefs = json['preferences'] is Map<String, dynamic>
+        ? Map<String, dynamic>.from(json['preferences'])
+        : <String, dynamic>{};
+    final daily = (json['daily_minutes'] as num?)?.toInt() ?? 
+        (prefs['daily_minutes'] as num?)?.toInt() ?? 30;
     return User(
       id: json['id']?.toString() ?? '',
       email: json['email'] ?? '',
-      name: rawName,
-      displayName: rawName,
+      name: rawName.toString(),
+      displayName: rawName.toString(),
       timezone: json['timezone'] ?? 'Asia/Kolkata',
-      dailyMinutes: (json['daily_minutes'] as num?)?.toInt() ?? 30,
-      preferences: json['preferences'] is Map<String, dynamic>
-          ? Map<String, dynamic>.from(json['preferences'])
-          : {},
+      dailyMinutes: daily,
+      preferences: prefs,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
@@ -47,10 +50,14 @@ class User {
         'id': id,
         'email': email,
         'name': name,
+        'full_name': name,
         'display_name': displayName,
         'timezone': timezone,
         'daily_minutes': dailyMinutes,
-        'preferences': preferences,
+        'preferences': {
+          ...preferences,
+          'daily_minutes': dailyMinutes,
+        },
         if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
         if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
       };

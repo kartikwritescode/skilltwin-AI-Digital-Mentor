@@ -1,3 +1,30 @@
+class StepEvaluation {
+  final String stepId;
+  final String question;
+  final String userAnswer;
+  final bool isCorrect;
+  final String correctAnswer;
+  final String explanation;
+
+  StepEvaluation({
+    required this.stepId,
+    required this.question,
+    required this.userAnswer,
+    required this.isCorrect,
+    required this.correctAnswer,
+    required this.explanation,
+  });
+
+  factory StepEvaluation.fromJson(Map<String, dynamic> json) => StepEvaluation(
+        stepId: json['step_id']?.toString() ?? '',
+        question: json['question']?.toString() ?? '',
+        userAnswer: json['user_answer']?.toString() ?? '',
+        isCorrect: json['is_correct'] == true,
+        correctAnswer: json['correct_answer']?.toString() ?? '',
+        explanation: json['explanation']?.toString() ?? '',
+      );
+}
+
 class SessionResult {
   final String sessionId;
   final String conceptId;
@@ -7,7 +34,7 @@ class SessionResult {
   final double masteryDelta;
   final double confidenceDelta;
   
-  // New Absolute States
+  // New Absolute States (0.0 - 1.0)
   final double currentMastery;
   final double currentConfidence;
   
@@ -20,6 +47,7 @@ class SessionResult {
   final double completenessScore;
   final String? reasoningFeedback;
   final List<String> identifiedMisconceptions;
+  final List<StepEvaluation> stepEvaluations;
   
   final Map<String, dynamic> evidenceSummary;
 
@@ -38,24 +66,53 @@ class SessionResult {
     required this.completenessScore,
     this.reasoningFeedback,
     this.identifiedMisconceptions = const [],
+    this.stepEvaluations = const [],
     required this.evidenceSummary,
   });
 
-  factory SessionResult.fromJson(Map<String, dynamic> json) => SessionResult(
-        sessionId: json['session_id'] ?? '',
-        conceptId: json['concept_id'] ?? '',
-        conceptTitle: json['concept_title'] ?? '',
-        masteryDelta: (json['mastery_delta'] ?? 0.0).toDouble(),
-        confidenceDelta: (json['confidence_delta'] ?? 0.0).toDouble(),
-        currentMastery: (json['current_mastery'] ?? 0.0).toDouble(),
-        currentConfidence: (json['current_confidence'] ?? 0.0).toDouble(),
-        improvements: List<String>.from(json['improvements'] ?? []),
-        focusAreas: List<String>.from(json['focus_areas'] ?? []),
-        mentorRecommendation: json['mentor_recommendation'] ?? '',
-        accuracyScore: (json['accuracy_score'] ?? 0.0).toDouble(),
-        completenessScore: (json['completeness_score'] ?? 0.0).toDouble(),
-        reasoningFeedback: json['reasoning_feedback'],
-        identifiedMisconceptions: List<String>.from(json['identified_misconceptions'] ?? []),
-        evidenceSummary: json['evidence_summary'] ?? {},
-      );
+  static double _normalizePercent(dynamic raw) {
+    if (raw == null) return 0.0;
+    final val = (raw as num).toDouble();
+    return val > 1.0 ? val / 100.0 : val;
+  }
+
+  static double _normalizeDelta(dynamic raw) {
+    if (raw == null) return 0.0;
+    final val = (raw as num).toDouble();
+    return val.abs() > 1.0 ? val / 100.0 : val;
+  }
+
+  factory SessionResult.fromJson(Map<String, dynamic> json) {
+    final rawStepEvals = json['step_evaluations'] as List?;
+    final stepEvals = rawStepEvals != null
+        ? rawStepEvals.map((e) => StepEvaluation.fromJson(e as Map<String, dynamic>)).toList()
+        : <StepEvaluation>[];
+
+    final scoreVal = _normalizePercent(json['accuracy_score'] ?? json['score']);
+
+    return SessionResult(
+      sessionId: json['session_id'] ?? json['id'] ?? '',
+      conceptId: json['concept_id'] ?? '',
+      conceptTitle: json['concept_title'] ?? '',
+      masteryDelta: _normalizeDelta(json['mastery_delta']),
+      confidenceDelta: _normalizeDelta(json['confidence_delta']),
+      currentMastery: _normalizePercent(json['current_mastery']),
+      currentConfidence: _normalizePercent(json['current_confidence']),
+      improvements: List<String>.from(json['improvements'] ?? []),
+      focusAreas: List<String>.from(json['focus_areas'] ?? []),
+      mentorRecommendation: json['mentor_recommendation'] ??
+          (json['next_recommendation'] is Map
+              ? json['next_recommendation']['reason'] ?? ''
+              : json['reasoning_feedback'] ?? ''),
+      accuracyScore: scoreVal,
+      completenessScore: _normalizePercent(json['completeness_score']),
+      reasoningFeedback: json['reasoning_feedback'],
+      identifiedMisconceptions: List<String>.from(json['identified_misconceptions'] ?? []),
+      stepEvaluations: stepEvals,
+      evidenceSummary: json['evidence_summary'] is Map<String, dynamic>
+          ? json['evidence_summary']
+          : {'score': scoreVal},
+    );
+  }
 }
+

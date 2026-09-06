@@ -86,7 +86,8 @@ class LibraryScreen extends ConsumerWidget {
                     await notifier.loadResources();
                   },
                   child: libraryState.isLoading && libraryState.resources.isEmpty
-                      ? const Padding(
+                      ? const SingleChildScrollView(
+                          physics: AlwaysScrollableScrollPhysics(),
                           padding: EdgeInsets.all(16.0),
                           child: SkeletonCardGroup(count: 3, height: 110),
                         )

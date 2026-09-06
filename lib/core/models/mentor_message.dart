@@ -126,7 +126,14 @@ class MentorMessage {
     final senderRaw = json['sender'] ?? json['role'];
     final parsedSender = _parseSender(senderRaw);
     final rawRole = (json['role'] ?? (parsedSender == MessageSender.user ? 'user' : 'assistant')).toString();
-    final contentText = (json['content'] ?? json['text'] ?? '').toString();
+    
+    String contentText = (json['content'] ?? json['text'] ?? json['reply'] ?? '').toString().trim();
+    if (contentText.isEmpty && (json['greeting'] != null || json['mentor_note'] != null)) {
+      final greeting = json['greeting']?.toString().trim() ?? '';
+      final note = json['mentor_note']?.toString().trim() ?? '';
+      contentText = [greeting, note].where((s) => s.isNotEmpty).join('\n\n');
+    }
+
     final created = json['created_at'] != null 
         ? DateTime.parse(json['created_at'])
         : (json['timestamp'] != null 
@@ -137,26 +144,38 @@ class MentorMessage {
         ? Map<String, dynamic>.from(json['metadata'])
         : <String, dynamic>{};
 
+    final rec = json['recommended_action'] is Map<String, dynamic> 
+        ? json['recommended_action'] as Map<String, dynamic> 
+        : null;
+
+    final actionTypeStr = json['action_type'] ?? meta['action_type'] ?? rec?['action_type'];
+    final cta = json['cta_text'] ?? meta['cta_text'] ?? rec?['quick_action_label'] ?? rec?['title'];
+    final why = json['why_context'] ?? meta['why_context'] ?? rec?['reason'];
+    final conceptId = json['concept_id'] ?? meta['concept_id'] ?? rec?['concept_id'];
+    final conceptTitle = json['concept_title'] ?? meta['concept_title'] ?? rec?['title'];
+
     return MentorMessage(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
       threadId: json['thread_id'] ?? meta['thread_id'] ?? '',
       userId: json['user_id'] ?? meta['user_id'] ?? '',
       role: rawRole,
-      text: contentText,
+      text: contentText.isNotEmpty ? contentText : 'Ready to guide your next learning milestone.',
       sender: parsedSender,
       intent: json['intent'] != null 
         ? MentorIntent.values.firstWhere((e) => e.name == json['intent'], orElse: () => MentorIntent.inform) 
         : null,
       timestamp: created,
       metadata: meta,
-      ctaText: json['cta_text'] ?? meta['cta_text'],
-      actionType: json['action_type'] != null 
-        ? MentorAction.values.firstWhere((e) => e.name.toLowerCase() == json['action_type'].toString().toLowerCase(), orElse: () => MentorAction.learn) 
+      ctaText: cta?.toString(),
+      actionType: actionTypeStr != null 
+        ? MentorAction.values.firstWhere(
+            (e) => e.name.toLowerCase() == actionTypeStr.toString().toLowerCase(), 
+            orElse: () => MentorAction.learn) 
         : null,
-      actionData: json['action_data'] ?? (meta['action_data'] is Map<String, dynamic> ? meta['action_data'] : null),
-      whyContext: json['why_context'] ?? meta['why_context'],
-      conceptId: json['concept_id'] ?? meta['concept_id'],
-      conceptTitle: json['concept_title'] ?? meta['concept_title'],
+      actionData: json['action_data'] ?? (meta['action_data'] is Map<String, dynamic> ? meta['action_data'] : rec),
+      whyContext: why?.toString(),
+      conceptId: conceptId?.toString(),
+      conceptTitle: conceptTitle?.toString(),
     );
   }
 

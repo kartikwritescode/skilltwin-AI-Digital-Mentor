@@ -39,7 +39,7 @@ class JourneyScreen extends ConsumerWidget {
                 _buildHeader(context, notifier.overallProgress, mentorGuidance),
                 Expanded(
                   child: journeyState.isLoading
-                      ? const Padding(
+                      ? const SingleChildScrollView(
                           padding: EdgeInsets.all(24.0),
                           child: SkeletonCardGroup(count: 3, height: 110),
                         )
