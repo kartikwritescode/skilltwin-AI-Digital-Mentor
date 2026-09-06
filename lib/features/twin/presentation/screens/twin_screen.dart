@@ -440,23 +440,28 @@ class _InteractiveKnowledgeGraphWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.hub_outlined, color: Color(0xFFFF6D00), size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'CONCEPT DEPENDENCY NETWORK',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1,
-                      color: Colors.grey.shade700,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.hub_outlined, color: Color(0xFFFF6D00), size: 18),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'CONCEPT DEPENDENCY NETWORK',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -464,7 +469,7 @@ class _InteractiveKnowledgeGraphWidget extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${nodes.length} Concepts • ${edges.length} Dependencies',
+                  '${nodes.length} Concepts',
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -497,16 +502,15 @@ class _InteractiveKnowledgeGraphWidget extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+          const SizedBox(height: 12),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 6,
+            children: const [
               _LegendDot(color: Colors.green, label: 'Mastered'),
-              const SizedBox(width: 14),
               _LegendDot(color: Colors.blue, label: 'Learning'),
-              const SizedBox(width: 14),
               _LegendDot(color: Colors.orange, label: 'Review'),
-              const SizedBox(width: 14),
               _LegendDot(color: Colors.red, label: 'Uncertain'),
             ],
           ),
