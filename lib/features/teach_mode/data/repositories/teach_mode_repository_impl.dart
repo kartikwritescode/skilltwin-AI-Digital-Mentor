@@ -25,18 +25,24 @@ class TeachModeRepositoryImpl implements TeachModeRepository {
     return _fallback.getUnderstandingReport();
   }
 
-  Future<String?> transcribeAudio(File audioFile) async {
+  @override
+  Future<String?> transcribeAudio(File audioFile, {String? conceptId}) async {
     try {
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(audioFile.path, filename: 'teach_audio.wav'),
-      });
+      final mapData = <String, dynamic>{
+        'file': await MultipartFile.fromFile(audioFile.path, filename: 'teach_audio.m4a'),
+      };
+      if (conceptId != null && conceptId.isNotEmpty) {
+        mapData['concept_id'] = conceptId;
+      }
+      final formData = FormData.fromMap(mapData);
       final response = await _apiClient.post('/teach/transcribe', data: formData);
-      return response.data['text'] ?? response.data['transcript'];
+      return response.data['transcript'] ?? response.data['text'];
     } catch (_) {
       return null;
     }
   }
 
+  @override
   Future<Map<String, dynamic>> evaluateExplanation(String conceptId, String explanationText) async {
     try {
       final response = await _apiClient.post('/teach/evaluate', data: {

@@ -7,7 +7,6 @@ import 'package:skilltwin/features/sessions/presentation/widgets/mentor_notifica
 import 'package:skilltwin/features/sessions/domain/repositories/revision_repository.dart';
 import 'package:skilltwin/features/sessions/data/repositories/mock_revision_repository.dart';
 import 'package:skilltwin/features/sessions/data/repositories/revision_repository_provider.dart';
-import 'package:skilltwin/features/sessions/presentation/providers/revision_provider.dart';
 
 void main() {
   group('Revision Experience Tests', () {

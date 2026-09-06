@@ -11,7 +11,6 @@ class TeachModeReportScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(teachModeProvider);
     final report = state.report;
-    final theme = Theme.of(context);
 
     if (report == null) {
       return const Scaffold(body: Center(child: Text('No report available.')));

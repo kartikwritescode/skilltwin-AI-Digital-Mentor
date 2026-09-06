@@ -13,6 +13,8 @@ class SessionState {
   final bool isSubmitting;
   final SessionResult? result;
   final String? error;
+  final DateTime? startedAt;
+  final double userConfidence;
 
   SessionState({
     this.session,
@@ -22,6 +24,8 @@ class SessionState {
     this.isSubmitting = false,
     this.result,
     this.error,
+    this.startedAt,
+    this.userConfidence = 75.0,
   });
 
   SessionStep? get currentStep {
@@ -35,6 +39,11 @@ class SessionState {
   bool get isFinished => result != null;
   bool get isLastStep => session != null && currentStepIndex == session!.steps.length - 1;
 
+  int get elapsedSeconds {
+    if (startedAt == null) return 0;
+    return DateTime.now().difference(startedAt!).inSeconds;
+  }
+
   SessionState copyWith({
     LearningSession? session,
     int? currentStepIndex,
@@ -43,6 +52,8 @@ class SessionState {
     bool? isSubmitting,
     SessionResult? result,
     String? error,
+    DateTime? startedAt,
+    double? userConfidence,
   }) {
     return SessionState(
       session: session ?? this.session,
@@ -52,6 +63,8 @@ class SessionState {
       isSubmitting: isSubmitting ?? this.isSubmitting,
       result: result ?? this.result,
       error: error,
+      startedAt: startedAt ?? this.startedAt,
+      userConfidence: userConfidence ?? this.userConfidence,
     );
   }
 }
@@ -90,8 +103,15 @@ class SessionNotifier extends StateNotifier<SessionState> {
     if (state.session != null && state.session!.steps.isNotEmpty) {
       // Find the first uncompleted step to support resume
       final resumeIndex = state.session!.steps.indexWhere((s) => !s.isCompleted);
-      state = state.copyWith(currentStepIndex: resumeIndex != -1 ? resumeIndex : 0);
+      state = state.copyWith(
+        currentStepIndex: resumeIndex != -1 ? resumeIndex : 0,
+        startedAt: state.startedAt ?? DateTime.now(),
+      );
     }
+  }
+
+  void setConfidence(double confidence) {
+    state = state.copyWith(userConfidence: confidence);
   }
 
   void updateEvidence(String key, dynamic value) {
@@ -122,7 +142,11 @@ class SessionNotifier extends StateNotifier<SessionState> {
   Future<void> submitSession() async {
     state = state.copyWith(isSubmitting: true, error: null);
     try {
-      final result = await _repository.completeSession(_sessionId, state.evidence);
+      final submissionPayload = Map<String, dynamic>.from(state.evidence);
+      submissionPayload['time_spent_seconds'] = state.elapsedSeconds > 0 ? state.elapsedSeconds : 120;
+      submissionPayload['self_reported_confidence'] = state.userConfidence;
+
+      final result = await _repository.completeSession(_sessionId, submissionPayload);
       state = state.copyWith(result: result, isSubmitting: false);
     } catch (e) {
       state = state.copyWith(isSubmitting: false, error: "Evaluation failed. Please try again.");

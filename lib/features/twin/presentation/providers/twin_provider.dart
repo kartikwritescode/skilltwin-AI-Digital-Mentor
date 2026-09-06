@@ -22,3 +22,8 @@ final conceptDetailProvider = FutureProvider.family<LearnerConcept, String>((ref
   final repository = ref.watch(twinRepositoryProvider);
   return repository.getConceptById(conceptId);
 });
+
+final conceptGraphTopologyProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final repository = ref.watch(twinRepositoryProvider);
+  return repository.getGraphTopology();
+});

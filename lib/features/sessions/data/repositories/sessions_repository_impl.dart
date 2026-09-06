@@ -47,11 +47,18 @@ class SessionsRepositoryImpl implements SessionsRepository {
           .map((e) => 'Step ${e.key}: ${e.value}')
           .join('\n');
 
+      final timeSpent = evidence['time_spent_seconds'] is int
+          ? evidence['time_spent_seconds'] as int
+          : 300;
+      final confidence = evidence['self_reported_confidence'] is num
+          ? (evidence['self_reported_confidence'] as num).toDouble()
+          : 75.0;
+
       final payload = {
         'user_submission': userSubmissionSummary,
         'step_responses': stepResponses,
-        'time_spent_seconds': 300,
-        'self_reported_confidence': 75.0,
+        'time_spent_seconds': timeSpent,
+        'self_reported_confidence': confidence,
         ...evidence,
       };
 

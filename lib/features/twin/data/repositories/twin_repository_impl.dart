@@ -49,4 +49,14 @@ class TwinRepositoryImpl implements TwinRepository {
       return _fallback.getTwinOverview();
     }
   }
+
+  @override
+  Future<Map<String, dynamic>> getGraphTopology() async {
+    try {
+      final response = await _apiClient.get('/concepts/graph/topology');
+      return Map<String, dynamic>.from(response.data);
+    } catch (_) {
+      return _fallback.getGraphTopology();
+    }
+  }
 }

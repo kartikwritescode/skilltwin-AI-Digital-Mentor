@@ -397,32 +397,268 @@ class _InsightTile extends StatelessWidget {
   }
 }
 
-class _KnowledgeMapPlaceholder extends StatelessWidget {
+class _KnowledgeMapPlaceholder extends ConsumerWidget {
   const _KnowledgeMapPlaceholder();
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final topologyAsync = ref.watch(conceptGraphTopologyProvider);
+
+    return topologyAsync.when(
+      data: (data) => _InteractiveKnowledgeGraphWidget(data: data),
+      loading: () => const SkeletonLoader.card(height: 240),
+      error: (_, __) => _InteractiveKnowledgeGraphWidget(
+        data: const {
+          'nodes': [
+            {'id': 'python_basics', 'name': 'Python Basics', 'domain': 'programming', 'tier': 1, 'mastery_score': 95.0, 'status': 'MASTERED'},
+            {'id': 'probability', 'name': 'Probability & Bayes', 'domain': 'math', 'tier': 1, 'mastery_score': 45.0, 'status': 'NEEDS_REVIEW'},
+            {'id': 'linear_algebra', 'name': 'Linear Algebra', 'domain': 'math', 'tier': 1, 'mastery_score': 60.0, 'status': 'LEARNING'},
+            {'id': 'backpropagation', 'name': 'Backpropagation', 'domain': 'ml', 'tier': 3, 'mastery_score': 30.0, 'status': 'UNCERTAIN'},
+          ],
+          'edges': [
+            {'source': 'linear_algebra', 'target': 'backpropagation', 'relationship': 'prerequisite'},
+          ]
+        },
+      ),
+    );
+  }
+}
+
+class _InteractiveKnowledgeGraphWidget extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const _InteractiveKnowledgeGraphWidget({required this.data});
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 180,
-      child: SkillTwinCard(
-        child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.hub_outlined, size: 48, color: Colors.orange.withOpacity(0.2)),
-            const SizedBox(height: 8),
-            const Text(
-              'Interactive Knowledge Graph',
-              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
+    final nodes = (data['nodes'] as List<dynamic>?) ?? [];
+    final edges = (data['edges'] as List<dynamic>?) ?? [];
+
+    return SkillTwinCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.hub_outlined, color: Color(0xFFFF6D00), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'CONCEPT DEPENDENCY NETWORK',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6D00).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${nodes.length} Concepts • ${edges.length} Dependencies',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFFF6D00),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 200,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: nodes.length,
+              separatorBuilder: (context, index) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 18,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+              ),
+              itemBuilder: (context, index) {
+                final node = nodes[index] as Map<String, dynamic>;
+                return _GraphNodeCard(node: node);
+              },
             ),
-            const Text(
-              'Visualizing concept dependencies',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _LegendDot(color: Colors.green, label: 'Mastered'),
+              const SizedBox(width: 14),
+              _LegendDot(color: Colors.blue, label: 'Learning'),
+              const SizedBox(width: 14),
+              _LegendDot(color: Colors.orange, label: 'Review'),
+              const SizedBox(width: 14),
+              _LegendDot(color: Colors.red, label: 'Uncertain'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GraphNodeCard extends StatelessWidget {
+  final Map<String, dynamic> node;
+
+  const _GraphNodeCard({required this.node});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (node['name'] ?? node['id'] ?? 'Concept').toString();
+    final id = (node['id'] ?? '').toString();
+    final status = (node['status'] ?? 'NOT_STARTED').toString().toUpperCase();
+    final mastery = ((node['mastery_score'] ?? 0.0) as num).toDouble();
+    final domain = (node['domain'] ?? 'core').toString();
+
+    Color statusColor;
+    if (status.contains('MASTERED')) {
+      statusColor = Colors.green;
+    } else if (status.contains('LEARN')) {
+      statusColor = Colors.blue;
+    } else if (status.contains('REVIEW')) {
+      statusColor = Colors.orange;
+    } else {
+      statusColor = Colors.red;
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        if (id.isNotEmpty) {
+          context.push('/journey/concept/$id');
+        }
+      },
+      child: Container(
+        width: 150,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: statusColor.withValues(alpha: 0.35), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: statusColor.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    domain.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Mastery',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                    ),
+                    Text(
+                      '${mastery.toInt()}%',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    value: (mastery / 100.0).clamp(0.0, 1.0),
+                    minHeight: 4,
+                    backgroundColor: Colors.grey.shade100,
+                    valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
-      ),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _LegendDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+        ),
+      ],
     );
   }
 }
@@ -639,24 +875,6 @@ class _CircularProgress extends StatelessWidget {
         ),
         Icon(Icons.psychology, color: Colors.orange.shade800, size: 32),
       ],
-    );
-  }
-}
-
-class _LoadingPlaceholder extends StatelessWidget {
-  final double height;
-  const _LoadingPlaceholder({required this.height});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: const Center(child: CircularProgressIndicator()),
     );
   }
 }

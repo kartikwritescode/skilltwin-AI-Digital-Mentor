@@ -6,4 +6,5 @@ abstract class TwinRepository {
   Future<List<Evidence>> getEvidenceHistory();
   Future<LearnerConcept> getConceptById(String conceptId);
   Future<Map<String, dynamic>> getTwinOverview();
+  Future<Map<String, dynamic>> getGraphTopology();
 }

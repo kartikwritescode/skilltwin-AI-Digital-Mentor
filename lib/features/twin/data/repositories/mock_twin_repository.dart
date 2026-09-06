@@ -98,4 +98,22 @@ class MockTwinRepository implements TwinRepository {
       ],
     };
   }
+
+  @override
+  Future<Map<String, dynamic>> getGraphTopology() async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    return {
+      'nodes': [
+        {'id': 'python_basics', 'name': 'Python Basics', 'domain': 'programming', 'tier': 1, 'mastery_score': 95.0, 'status': 'MASTERED'},
+        {'id': 'linear_algebra', 'name': 'Linear Algebra', 'domain': 'math', 'tier': 1, 'mastery_score': 60.0, 'status': 'LEARNING'},
+        {'id': 'probability', 'name': 'Probability & Bayes', 'domain': 'math', 'tier': 1, 'mastery_score': 45.0, 'status': 'NEEDS_REVIEW'},
+        {'id': 'gradient_descent', 'name': 'Gradient Descent', 'domain': 'ml', 'tier': 2, 'mastery_score': 70.0, 'status': 'LEARNING'},
+        {'id': 'backpropagation', 'name': 'Backpropagation', 'domain': 'ml', 'tier': 3, 'mastery_score': 30.0, 'status': 'UNCERTAIN'},
+      ],
+      'edges': [
+        {'source': 'linear_algebra', 'target': 'gradient_descent', 'relationship': 'prerequisite'},
+        {'source': 'gradient_descent', 'target': 'backpropagation', 'relationship': 'prerequisite'},
+      ]
+    };
+  }
 }

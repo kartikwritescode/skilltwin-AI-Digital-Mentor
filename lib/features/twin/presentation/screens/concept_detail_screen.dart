@@ -11,7 +11,6 @@ class ConceptDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final conceptAsync = ref.watch(conceptDetailProvider(conceptId));
-    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
