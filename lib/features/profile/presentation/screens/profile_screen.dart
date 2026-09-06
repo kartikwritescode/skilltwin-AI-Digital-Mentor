@@ -485,147 +485,151 @@ class ProfileScreen extends ConsumerWidget {
       builder: (bottomSheetContext) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
           padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Edit Personal Info & Targets',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Customize how SkillTwin addresses you and schedules your daily learning.',
-                style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Full Name',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: nameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  hintText: 'Enter your name',
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Daily Practice Target',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                children: [15, 30, 45, 60].map((mins) {
-                  final isSelected = selectedMinutes == mins;
-                  return ChoiceChip(
-                    label: Text('$mins mins'),
-                    selected: isSelected,
-                    selectedColor: AppTheme.primaryAccent,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                    onSelected: (selected) {
-                      if (selected) {
-                        setModalState(() => selectedMinutes = mins);
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Timezone',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: timezoneController,
-                decoration: InputDecoration(
-                  hintText: 'e.g. Asia/Kolkata',
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-              ),
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final newName = nameController.text.trim();
-                    final newTz = timezoneController.text.trim();
-                    if (newName.isEmpty) return;
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Edit Personal Info & Targets',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Customize how SkillTwin addresses you and schedules your daily learning.',
+                    style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Full Name',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: nameController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: InputDecoration(
+                      hintText: 'Enter your name',
+                      filled: true,
+                      fillColor: const Color(0xFFF5F5F5),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Daily Practice Target',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    children: [15, 30, 45, 60].map((mins) {
+                      final isSelected = selectedMinutes == mins;
+                      return ChoiceChip(
+                        label: Text('$mins mins'),
+                        selected: isSelected,
+                        selectedColor: AppTheme.primaryAccent,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black87,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        onSelected: (selected) {
+                          if (selected) {
+                            setModalState(() => selectedMinutes = mins);
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Timezone',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: timezoneController,
+                    decoration: InputDecoration(
+                      hintText: 'e.g. Asia/Kolkata',
+                      filled: true,
+                      fillColor: const Color(0xFFF5F5F5),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final newName = nameController.text.trim();
+                        final newTz = timezoneController.text.trim();
+                        if (newName.isEmpty) return;
 
-                    final updated = user.copyWith(
-                      name: newName,
-                      displayName: newName,
-                      dailyMinutes: selectedMinutes,
-                      timezone: newTz.isNotEmpty ? newTz : user.timezone,
-                    );
-
-                    Navigator.pop(bottomSheetContext);
-                    ref.read(authProvider.notifier).updateUser(updated);
-
-                    try {
-                      await ref.read(profileRepositoryProvider).updateProfile(updated);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Profile updated successfully!'),
-                            backgroundColor: Colors.green,
-                          ),
+                        final updated = user.copyWith(
+                          name: newName,
+                          displayName: newName,
+                          dailyMinutes: selectedMinutes,
+                          timezone: newTz.isNotEmpty ? newTz : user.timezone,
                         );
-                      }
-                    } catch (_) {
-                      // Handled by fallback
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryAccent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+
+                        Navigator.pop(bottomSheetContext);
+                        ref.read(authProvider.notifier).updateUser(updated);
+
+                        try {
+                          await ref.read(profileRepositoryProvider).updateProfile(updated);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Profile updated successfully!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (_) {
+                          // Handled by fallback
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                  child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
+                  const SizedBox(height: 8),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
