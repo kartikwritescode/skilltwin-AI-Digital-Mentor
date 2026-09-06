@@ -331,6 +331,35 @@ class _MessageBubble extends StatelessWidget {
               ),
             ],
           ),
+          if (isMentor && message.warningMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 42, top: 6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade300, width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.info_outline, size: 13, color: Colors.amber.shade900),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        message.warningMessage!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.amber.shade900,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (isMentor && (message.actionType != null || message.whyContext != null))
             Padding(
               padding: const EdgeInsets.only(left: 40, top: 12),

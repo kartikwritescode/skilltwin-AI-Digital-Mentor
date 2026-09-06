@@ -88,10 +88,14 @@ class MentorMessage {
   final MentorAction? actionType;
   final Map<String, dynamic>? actionData;
   final String? whyContext;
-  
+
   // Concept context
   final String? conceptId;
   final String? conceptTitle;
+
+  // AI Health and Quota Status
+  final bool isAiGenerated;
+  final String? warningMessage;
 
   String get content => text;
   DateTime get createdAt => timestamp;
@@ -112,6 +116,8 @@ class MentorMessage {
     this.whyContext,
     this.conceptId,
     this.conceptTitle,
+    this.isAiGenerated = true,
+    this.warningMessage,
   })  : sender = sender ?? ((role?.toLowerCase() == 'user') ? MessageSender.user : MessageSender.mentor),
         role = role ?? ((sender == MessageSender.user) ? 'user' : 'assistant');
 
@@ -154,6 +160,11 @@ class MentorMessage {
     final conceptId = json['concept_id'] ?? meta['concept_id'] ?? rec?['concept_id'];
     final conceptTitle = json['concept_title'] ?? meta['concept_title'] ?? rec?['title'];
 
+    final isAi = json['is_ai_generated'] != null 
+        ? (json['is_ai_generated'] == true) 
+        : (meta['is_ai_generated'] != false);
+    final warning = json['warning_message'] ?? meta['warning_message'];
+
     return MentorMessage(
       id: json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
       threadId: json['thread_id'] ?? meta['thread_id'] ?? '',
@@ -176,6 +187,8 @@ class MentorMessage {
       whyContext: why?.toString(),
       conceptId: conceptId?.toString(),
       conceptTitle: conceptTitle?.toString(),
+      isAiGenerated: isAi,
+      warningMessage: warning?.toString(),
     );
   }
 
@@ -185,6 +198,8 @@ class MentorMessage {
     'user_id': userId,
     'role': role,
     'content': text,
+    'is_ai_generated': isAiGenerated,
+    if (warningMessage != null) 'warning_message': warningMessage,
     'metadata': {
       ...metadata,
       if (ctaText != null) 'cta_text': ctaText,
@@ -193,6 +208,8 @@ class MentorMessage {
       if (whyContext != null) 'why_context': whyContext,
       if (conceptId != null) 'concept_id': conceptId,
       if (conceptTitle != null) 'concept_title': conceptTitle,
+      'is_ai_generated': isAiGenerated,
+      if (warningMessage != null) 'warning_message': warningMessage,
     },
     'created_at': timestamp.toIso8601String(),
     // Legacy fields for backward compatibility

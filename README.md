@@ -447,26 +447,40 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
-```
-
 Create a `backend/.env` file:
 ```ini
-ENVIRONMENT=development
-LOG_LEVEL=INFO
+APP_NAME=SkillTwin
+APP_ENV=development
+DEBUG=true
+PORT=8000
+HOST=0.0.0.0
+API_V1_STR=/api/v1
+
 DATABASE_URL=sqlite+aiosqlite:///./skilltwin.db
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-1.5-flash
-SUPABASE_URL=
-SUPABASE_KEY=
-JWT_SECRET=skilltwin_local_dev_secret_key_32_characters_minimum
-CORS_ORIGINS=["*"]
+
+# AI Provider Configuration
+LLM_PROVIDER=gemini
+LLM_API_KEY=your_google_ai_studio_api_key_here
+LLM_MODEL=gemini-1.5-flash
+EMBEDDING_MODEL=text-embedding-004
+
+# Fallback & Production settings
+ALLOWED_ORIGINS=["*"]
 ```
 
-Run the backend server:
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-The backend is now live at `http://localhost:8000`. Interactive OpenAPI documentation is available at `http://localhost:8000/docs`.
+#### Configuring Google Gemini on Render Deployment
+If you are deploying or have deployed SkillTwin backend to Render:
+1. Open your **Render Dashboard** -> Select the `skilltwin-backend` Web Service.
+2. Go to **Environment** in the left sidebar.
+3. Add or update the following Environment Variables:
+   - `LLM_PROVIDER`: `gemini`
+   - `LLM_API_KEY`: *(paste your Google AI Studio key from https://aistudio.google.com)*
+   - `GEMINI_API_KEY`: *(same as LLM_API_KEY as an alias)*
+   - `LLM_MODEL`: `gemini-1.5-flash` (or `gemini-2.0-flash` / `gemini-2.5-flash`)
+4. Click **Save Changes**. Render will automatically trigger a rolling deploy with the updated key.
+
+#### Graceful Offline Fallback & Rate Limiting
+If a Google Gemini Free Tier rate limit or quota exhaustion (HTTP 429) occurs, the backend automatically switches to its **Deterministic Offline Pedagogical Intelligence Engine**. It does not crash or return dummy repetitive text; it dynamically analyzes the student's active goals, retention risks, and misconceptions, while passing an `is_ai_generated: false` badge to the client interface.
 
 ### 3. Frontend Client Setup
 ```bash
