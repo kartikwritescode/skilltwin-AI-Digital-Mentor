@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/home_provider.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
 import '../../../../core/widgets/mentor_recommendation_banner.dart';
@@ -19,6 +20,14 @@ class HomeScreen extends ConsumerWidget {
     final activeGoalAsync = ref.watch(activeGoalProvider);
     final recommendationAsync = ref.watch(nextBestActionProvider);
     final mentorMessagesAsync = ref.watch(recentMentorMessagesProvider);
+
+    final authState = ref.watch(authProvider);
+    final rawName = authState.user?.displayName.trim();
+    final userName = (rawName != null && rawName.isNotEmpty)
+        ? rawName
+        : (authState.user?.name.trim().isNotEmpty == true
+            ? authState.user!.name.trim()
+            : 'Learner');
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
@@ -43,7 +52,7 @@ class HomeScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
               children: [
-                _buildGreeting(context),
+                _buildGreeting(context, userName),
                 const SizedBox(height: 20),
 
                 // Question answered: "What should I do now?"
@@ -111,12 +120,20 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildGreeting(BuildContext context) {
+  Widget _buildGreeting(BuildContext context, String userName) {
+    final hour = DateTime.now().hour;
+    String salutation = 'Good morning';
+    if (hour >= 12 && hour < 17) {
+      salutation = 'Good afternoon';
+    } else if (hour >= 17) {
+      salutation = 'Good evening';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Good morning, Alex',
+          '$salutation, $userName',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 letterSpacing: -0.5,

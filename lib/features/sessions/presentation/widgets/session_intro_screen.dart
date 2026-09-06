@@ -18,106 +18,109 @@ class SessionIntroScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 40),
-        Center(
-          child: Hero(
-            tag: 'session_type_${session.id}',
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                session.type.name.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.orange,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  letterSpacing: 1.1,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 24),
+          Center(
+            child: Hero(
+              tag: 'session_type_${session.id}',
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  session.type.name.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 1.1,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 32),
-        Text(
-          'SESSION',
-          textAlign: TextAlign.center,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: Colors.grey,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 2.0,
+          const SizedBox(height: 24),
+          Text(
+            'SESSION',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: Colors.grey,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2.0,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          session.conceptTitle,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-            letterSpacing: -0.5,
+          const SizedBox(height: 8),
+          Text(
+            session.conceptTitle,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+              letterSpacing: -0.5,
+            ),
           ),
-        ),
-        const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _InfoBadge(icon: Icons.timer_outlined, label: '${session.durationMinutes} minutes'),
-            const SizedBox(width: 12),
-            _InfoBadge(icon: Icons.layers_outlined, label: '${session.steps.length} steps'),
-          ],
-        ),
-        const SizedBox(height: 48),
-        SkillTwinCard(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.assistant, color: Colors.orange, size: 20),
-                  const SizedBox(width: 12),
-                  Text(
-                    'WHY THIS SESSION?',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange.shade900,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                session.whyStatement,
-                style: const TextStyle(fontSize: 16, height: 1.6, color: Colors.black87),
-              ),
+              _InfoBadge(icon: Icons.timer_outlined, label: '${session.durationMinutes} minutes'),
+              const SizedBox(width: 12),
+              _InfoBadge(icon: Icons.layers_outlined, label: '${session.steps.length} steps'),
             ],
           ),
-        ),
-        const Spacer(),
-        _SessionWorkflowPreview(steps: session.steps),
-        const SizedBox(height: 40),
-        ElevatedButton(
-          onPressed: () => ref.read(sessionStateProvider(sessionId).notifier).startSession(),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 0,
+          const SizedBox(height: 32),
+          SkillTwinCard(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.assistant, color: Colors.orange, size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      'WHY THIS SESSION?',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  session.whyStatement,
+                  style: const TextStyle(fontSize: 15, height: 1.55, color: Colors.black87),
+                ),
+              ],
+            ),
           ),
-          child: const Text(
-            'START SESSION',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+          const SizedBox(height: 28),
+          _SessionWorkflowPreview(steps: session.steps),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: () => ref.read(sessionStateProvider(sessionId).notifier).startSession(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 0,
+            ),
+            child: const Text(
+              'START SESSION',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-      ],
+          const SizedBox(height: 32),
+        ],
+      ),
     );
   }
 }
@@ -170,7 +173,7 @@ class _SessionWorkflowPreview extends StatelessWidget {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.3),
+                    color: Colors.orange.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                   ),
                 ),

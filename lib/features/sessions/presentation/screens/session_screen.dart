@@ -130,10 +130,13 @@ class SessionScreen extends ConsumerWidget {
       );
     }
 
-    return SessionContentScreen(
-      session: state.session!,
-      sessionId: sessionId,
-      currentStep: state.currentStep!,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: SessionContentScreen(
+        session: state.session!,
+        sessionId: sessionId,
+        currentStep: state.currentStep!,
+      ),
     );
   }
 
