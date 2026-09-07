@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/widgets/direction_aware_navigation.dart';
-
 class MainWrapper extends ConsumerWidget {
   final Widget child;
 
@@ -14,10 +12,7 @@ class MainWrapper extends ConsumerWidget {
     final selectedIndex = _calculateSelectedIndex(context);
 
     return Scaffold(
-      body: DirectionAwareNavigation(
-        currentIndex: selectedIndex,
-        child: child,
-      ),
+      body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) => _onItemTapped(index, context),
