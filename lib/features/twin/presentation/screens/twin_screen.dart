@@ -3,24 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/twin_provider.dart';
-import '../../../../core/widgets/skilltwin_card.dart';
-import '../../../../core/widgets/mentor_app_bar_action.dart';
-import '../../../../core/widgets/mentor_recommendation_banner.dart';
-import '../../../../core/widgets/skeleton_loader.dart';
-import '../../../../core/widgets/error_state_view.dart';
+import '../../../../core/models/twin_dashboard.dart';
 import '../../../../core/models/learner_concept.dart';
 import '../../../../core/models/evidence.dart';
-import '../../../mentor/presentation/providers/mentor_recommendation_provider.dart';
+import '../../../../core/widgets/skilltwin_card.dart';
+import '../../../../core/widgets/mentor_app_bar_action.dart';
+import '../../../../core/widgets/skeleton_loader.dart';
+import '../../../../core/widgets/error_state_view.dart';
 
 class TwinScreen extends ConsumerWidget {
   const TwinScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final overviewAsync = ref.watch(twinOverviewProvider);
+    final twinDashboardAsync = ref.watch(twinDashboardProvider);
     final learnerStateAsync = ref.watch(learnerStateProvider);
     final evidenceAsync = ref.watch(evidenceHistoryProvider);
-    final recommendationAsync = ref.watch(currentMentorRecommendationProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
@@ -35,72 +33,40 @@ class TwinScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           HapticFeedback.lightImpact();
-          ref.invalidate(twinOverviewProvider);
+          ref.invalidate(twinDashboardProvider);
           ref.invalidate(learnerStateProvider);
           ref.invalidate(evidenceHistoryProvider);
-          ref.invalidate(currentMentorRecommendationProvider);
         },
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              children: [
-                _buildQuestionHeader(context),
-                const SizedBox(height: 16),
-                overviewAsync.when(
-                  data: (data) => _TwinOverviewSection(data: data),
-                  loading: () => const SkeletonLoader.card(height: 150),
-                  error: (err, _) => ErrorStateView(
-                    error: err.toString(),
-                    onRetry: () => ref.invalidate(twinOverviewProvider),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                recommendationAsync.when(
-                  data: (rec) => MentorRecommendationBanner(
-                    recommendation: rec,
-                    sectionContext: 'COGNITIVE REPAIR',
-                    customActionLabel: 'Remediate Blindspot',
-                  ),
-                  loading: () => const SkeletonLoader.card(height: 150),
-                  error: (_, __) => const SizedBox.shrink(),
-                ),
-                const SizedBox(height: 20),
-                _buildMaintenanceCTA(context),
-                const SizedBox(height: 28),
-                _SectionHeader(title: 'Knowledge Graph', action: 'Inspect'),
-                const _KnowledgeMapPlaceholder(),
-                const SizedBox(height: 28),
-                _SectionHeader(title: 'Verified Concepts'),
-                learnerStateAsync.when(
-                  data: (concepts) => Column(
-                    children: concepts
-                        .map((concept) => _ConceptSummaryCard(concept: concept))
-                        .toList(),
-                  ),
-                  loading: () => const SkeletonCardGroup(count: 3, height: 80),
-                  error: (err, _) => ErrorStateView(
-                    error: err.toString(),
-                    onRetry: () => ref.invalidate(learnerStateProvider),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                _SectionHeader(title: 'Retrieval & Practice Evidence'),
-                evidenceAsync.when(
-                  data: (evidence) => Column(
-                    children: evidence
-                        .map((e) => _EvidenceTile(evidence: e))
-                        .toList(),
-                  ),
-                  loading: () => const SkeletonCardGroup(count: 2, height: 70),
-                  error: (err, _) => ErrorStateView(
-                    error: err.toString(),
-                    onRetry: () => ref.invalidate(evidenceHistoryProvider),
-                  ),
-                ),
-                const SizedBox(height: 40),
-              ],
+            child: twinDashboardAsync.when(
+              data: (dashboard) {
+                if (!dashboard.hasSufficientData) {
+                  return _buildInitialEmptyState(context);
+                }
+                return _buildTwinContent(
+                  context,
+                  dashboard,
+                  learnerStateAsync.asData?.value ?? [],
+                  evidenceAsync.asData?.value ?? [],
+                );
+              },
+              loading: () => ListView(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 12.0),
+                children: const [
+                  SkeletonLoader.card(height: 60),
+                  SizedBox(height: 16),
+                  SkeletonLoader.card(height: 150),
+                  SizedBox(height: 20),
+                  SkeletonCardGroup(count: 2, height: 100),
+                ],
+              ),
+              error: (err, _) => ErrorStateView(
+                error: err.toString(),
+                onRetry: () => ref.invalidate(twinDashboardProvider),
+              ),
             ),
           ),
         ),
@@ -108,21 +74,139 @@ class TwinScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildInitialEmptyState(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(32.0),
+      children: [
+        const SizedBox(height: 48),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF6D00).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.psychology_outlined,
+              size: 64,
+              color: Color(0xFFFF6D00),
+            ),
+          ),
+        ),
+        const SizedBox(height: 28),
+        const Text(
+          "Your Cognitive Twin is Calibrating",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF212121),
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          "SkillTwin does not generate vanity or fabricated metrics. Your Cognitive Twin is constructed solely from empirical proofs — completed lessons, practice quizzes, and spaced retrieval sessions.",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13.5,
+            color: Colors.grey.shade600,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 28),
+        Center(
+          child: ElevatedButton.icon(
+            onPressed: () => context.go('/journey'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6D00),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.explore, size: 18),
+            label: const Text(
+              "Start Practicing in Journey",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+        const SizedBox(height: 40),
+      ],
+    );
+  }
+
+  Widget _buildTwinContent(
+    BuildContext context,
+    TwinDashboardData data,
+    List<LearnerConcept> concepts,
+    List<Evidence> evidence,
+  ) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      children: [
+        _buildQuestionHeader(context),
+        const SizedBox(height: 16),
+
+        // 1. Overall Understanding Card
+        _TwinMasteryOverview(data: data),
+        const SizedBox(height: 20),
+
+        // 2. Stat Boxes: Strong, Developing, Attention, At Risk
+        _StatBoxesGrid(data: data),
+        const SizedBox(height: 24),
+
+        // 3. Knowledge Maintenance CTA
+        _buildMaintenanceCTA(context),
+        const SizedBox(height: 28),
+
+        // 4. Mentor Insights
+        if (data.insights.isNotEmpty) ...[
+          _SectionHeader(title: 'Cognitive Insights'),
+          ...data.insights.map((insight) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _InsightTile(text: insight),
+              )),
+          const SizedBox(height: 28),
+        ],
+
+        // 5. Verified Concepts (if available)
+        if (concepts.isNotEmpty) ...[
+          _SectionHeader(title: 'Verified Concepts'),
+          ...concepts.map((concept) => _ConceptSummaryCard(concept: concept)),
+          const SizedBox(height: 28),
+        ],
+
+        // 6. Evidence History (if available)
+        if (evidence.isNotEmpty) ...[
+          _SectionHeader(title: 'Retrieval & Practice Evidence'),
+          ...evidence.map((e) => _EvidenceTile(evidence: e)),
+          const SizedBox(height: 32),
+        ],
+
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
   Widget _buildQuestionHeader(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'WHAT DO I ACTUALLY KNOW?',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: const Color(0xFFFF6D00),
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
+          style: TextStyle(
+            color: Color(0xFFFF6D00),
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+            letterSpacing: 1.2,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
-          'An uninflated, evidence-based model of your long-term memory and conceptual boundaries.',
+          'An uninflated, evidence-based model of your conceptual memory and skill boundaries.',
           style: TextStyle(
             fontSize: 13,
             color: Colors.grey.shade700,
@@ -142,10 +226,10 @@ class TwinScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
+              color: const Color(0xFFFF6D00).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.auto_fix_high, color: Colors.orange),
+            child: const Icon(Icons.auto_fix_high, color: Color(0xFFFF6D00)),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -154,154 +238,140 @@ class TwinScreen extends ConsumerWidget {
               children: [
                 const Text(
                   'Knowledge Maintenance',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
                 Text(
-                  'Personalized plan to fix, revise, and keep your skills sharp.',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  'Personalized plan to repair blindspots and reinforce memory.',
+                  style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
         ],
       ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final String? action;
-  const _SectionHeader({required this.title, this.action});
+class _TwinMasteryOverview extends StatelessWidget {
+  final TwinDashboardData data;
+
+  const _TwinMasteryOverview({required this.data});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+    final masteryPct = (data.overallMastery * 100).toInt();
+
+    return SkillTwinCard(
+      padding: const EdgeInsets.all(24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'VERIFIED MASTERY',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade600,
+                        fontSize: 11,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6D00).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        data.learningLevel.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFF6D00),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-          ),
-          if (action != null)
-            TextButton(
-              onPressed: () {},
-              child: Text(
-                action!,
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  '$masteryPct%',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 32,
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Based on ${data.verifiedEvidenceCount} validated practice attempts.',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                ),
+              ],
             ),
+          ),
+          _CircularProgress(value: data.overallMastery),
         ],
       ),
     );
   }
 }
 
-class _TwinOverviewSection extends StatelessWidget {
-  final Map<String, dynamic> data;
-  const _TwinOverviewSection({required this.data});
+class _StatBoxesGrid extends StatelessWidget {
+  final TwinDashboardData data;
+
+  const _StatBoxesGrid({required this.data});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final overall = (data['overall_understanding'] ?? 0.0) as double;
-    final insights = (data['insights'] as List<dynamic>?) ?? [];
+    final strongNames = data.strongestAreas.map((a) => a.name).toList();
+    final weakNames = data.weakestAreas.map((a) => a.name).toList();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.5,
       children: [
-        SkillTwinCard(
-          padding: const EdgeInsets.all(24),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'OVERALL UNDERSTANDING',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${(overall * 100).toInt()}%',
-                      style: theme.textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange.shade800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Mastery level is stable and progressing.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              _CircularProgress(value: overall),
-            ],
-          ),
+        _StatBox(
+          label: 'Strong Areas',
+          items: strongNames,
+          color: Colors.green.shade50,
+          textColor: Colors.green.shade800,
+          icon: Icons.trending_up,
         ),
-        const SizedBox(height: 24),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.6,
-          children: [
-            _StatBox(
-              label: 'Strong areas',
-              items: List<String>.from(data['strong_areas'] ?? []),
-              color: Colors.green.shade50,
-              textColor: Colors.green.shade800,
-              icon: Icons.trending_up,
-            ),
-            _StatBox(
-              label: 'Developing',
-              items: List<String>.from(data['developing_areas'] ?? []),
-              color: Colors.blue.shade50,
-              textColor: Colors.blue.shade800,
-              icon: Icons.hourglass_empty,
-            ),
-            _StatBox(
-              label: 'Needs attention',
-              items: List<String>.from(data['needs_attention'] ?? []),
-              color: Colors.red.shade50,
-              textColor: Colors.red.shade800,
-              icon: Icons.warning_amber_rounded,
-            ),
-            _StatBox(
-              label: 'Retention Risk',
-              items: ['Recursion'],
-              color: Colors.orange.shade50,
-              textColor: Colors.orange.shade800,
-              icon: Icons.psychology_alt,
-            ),
-          ],
+        _StatBox(
+          label: 'Developing',
+          items: weakNames,
+          color: Colors.blue.shade50,
+          textColor: Colors.blue.shade800,
+          icon: Icons.hourglass_empty,
         ),
-        const SizedBox(height: 24),
-        Text(
-          'Mentor Insights',
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        _StatBox(
+          label: 'Concepts At Risk',
+          items: data.conceptsAtRisk,
+          color: Colors.red.shade50,
+          textColor: Colors.red.shade800,
+          icon: Icons.warning_amber_rounded,
         ),
-        const SizedBox(height: 12),
-        ...insights.map((insight) => Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: _InsightTile(text: insight.toString()),
-            )),
+        _StatBox(
+          label: 'Consistency',
+          items: ['${data.consistencyStreak} day streak'],
+          color: Colors.orange.shade50,
+          textColor: Colors.orange.shade800,
+          icon: Icons.local_fire_department,
+        ),
       ],
     );
   }
@@ -335,14 +405,14 @@ class _StatBox extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 14, color: textColor.withOpacity(0.6)),
+              Icon(icon, size: 14, color: textColor.withValues(alpha: 0.7)),
               const SizedBox(width: 4),
               Text(
                 label.toUpperCase(),
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: textColor.withOpacity(0.7),
+                  color: textColor.withValues(alpha: 0.7),
                   letterSpacing: 0.5,
                 ),
               ),
@@ -353,7 +423,7 @@ class _StatBox extends StatelessWidget {
             child: Text(
               items.isEmpty ? 'None' : items.join(', '),
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 12.5,
                 fontWeight: FontWeight.bold,
                 color: textColor,
               ),
@@ -367,8 +437,30 @@ class _StatBox extends StatelessWidget {
   }
 }
 
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF212121),
+        ),
+      ),
+    );
+  }
+}
+
 class _InsightTile extends StatelessWidget {
   final String text;
+
   const _InsightTile({required this.text});
 
   @override
@@ -378,17 +470,23 @@ class _InsightTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withOpacity(0.1)),
+        border: Border.all(
+          color: const Color(0xFFFF6D00).withValues(alpha: 0.15),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.auto_awesome, color: Colors.orange, size: 20),
+          const Icon(Icons.auto_awesome, color: Color(0xFFFF6D00), size: 18),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black87),
+              style: const TextStyle(
+                fontSize: 13.5,
+                height: 1.4,
+                color: Color(0xFF37474F),
+              ),
             ),
           ),
         ],
@@ -397,278 +495,59 @@ class _InsightTile extends StatelessWidget {
   }
 }
 
-class _KnowledgeMapPlaceholder extends ConsumerWidget {
-  const _KnowledgeMapPlaceholder();
+class _ConceptSummaryCard extends StatelessWidget {
+  final LearnerConcept concept;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final topologyAsync = ref.watch(conceptGraphTopologyProvider);
-
-    return topologyAsync.when(
-      data: (data) => _InteractiveKnowledgeGraphWidget(data: data),
-      loading: () => const SkeletonLoader.card(height: 240),
-      error: (_, __) => _InteractiveKnowledgeGraphWidget(
-        data: const {
-          'nodes': [
-            {'id': 'python_basics', 'name': 'Python Basics', 'domain': 'programming', 'tier': 1, 'mastery_score': 95.0, 'status': 'MASTERED'},
-            {'id': 'probability', 'name': 'Probability & Bayes', 'domain': 'math', 'tier': 1, 'mastery_score': 45.0, 'status': 'NEEDS_REVIEW'},
-            {'id': 'linear_algebra', 'name': 'Linear Algebra', 'domain': 'math', 'tier': 1, 'mastery_score': 60.0, 'status': 'LEARNING'},
-            {'id': 'backpropagation', 'name': 'Backpropagation', 'domain': 'ml', 'tier': 3, 'mastery_score': 30.0, 'status': 'UNCERTAIN'},
-          ],
-          'edges': [
-            {'source': 'linear_algebra', 'target': 'backpropagation', 'relationship': 'prerequisite'},
-          ]
-        },
-      ),
-    );
-  }
-}
-
-class _InteractiveKnowledgeGraphWidget extends StatelessWidget {
-  final Map<String, dynamic> data;
-
-  const _InteractiveKnowledgeGraphWidget({required this.data});
+  const _ConceptSummaryCard({required this.concept});
 
   @override
   Widget build(BuildContext context) {
-    final nodes = (data['nodes'] as List<dynamic>?) ?? [];
-    final edges = (data['edges'] as List<dynamic>?) ?? [];
-
-    return SkillTwinCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(Icons.hub_outlined, color: Color(0xFFFF6D00), size: 18),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'CONCEPT DEPENDENCY NETWORK',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.8,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF6D00).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${nodes.length} Concepts',
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10.0),
+      child: SkillTwinCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  concept.conceptId.toUpperCase().replaceAll('_', ' '),
                   style: const TextStyle(
-                    fontSize: 10,
+                      fontWeight: FontWeight.bold, fontSize: 14.5),
+                ),
+                Text(
+                  '${(concept.mastery * 100).toInt()}% mastery',
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
+                    fontSize: 12,
                     color: Color(0xFFFF6D00),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 200,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: nodes.length,
-              separatorBuilder: (context, index) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                  child: Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 18,
-                    color: Colors.grey.shade400,
-                  ),
-                ),
-              ),
-              itemBuilder: (context, index) {
-                final node = nodes[index] as Map<String, dynamic>;
-                return _GraphNodeCard(node: node);
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 12,
-            runSpacing: 6,
-            children: const [
-              _LegendDot(color: Colors.green, label: 'Mastered'),
-              _LegendDot(color: Colors.blue, label: 'Learning'),
-              _LegendDot(color: Colors.orange, label: 'Review'),
-              _LegendDot(color: Colors.red, label: 'Uncertain'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GraphNodeCard extends StatelessWidget {
-  final Map<String, dynamic> node;
-
-  const _GraphNodeCard({required this.node});
-
-  @override
-  Widget build(BuildContext context) {
-    final name = (node['name'] ?? node['id'] ?? 'Concept').toString();
-    final id = (node['id'] ?? '').toString();
-    final status = (node['status'] ?? 'NOT_STARTED').toString().toUpperCase();
-    final mastery = ((node['mastery_score'] ?? 0.0) as num).toDouble();
-    final domain = (node['domain'] ?? 'core').toString();
-
-    Color statusColor;
-    if (status.contains('MASTERED')) {
-      statusColor = Colors.green;
-    } else if (status.contains('LEARN')) {
-      statusColor = Colors.blue;
-    } else if (status.contains('REVIEW')) {
-      statusColor = Colors.orange;
-    } else {
-      statusColor = Colors.red;
-    }
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () {
-        HapticFeedback.lightImpact();
-        if (id.isNotEmpty) {
-          context.push('/journey/concept/$id');
-        }
-      },
-      child: Container(
-        width: 150,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: statusColor.withValues(alpha: 0.35), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: statusColor.withValues(alpha: 0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    domain.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    height: 1.2,
-                  ),
-                ),
               ],
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Mastery',
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                    ),
-                    Text(
-                      '${mastery.toInt()}%',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: (mastery / 100.0).clamp(0.0, 1.0),
-                    minHeight: 4,
-                    backgroundColor: Colors.grey.shade100,
-                    valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: concept.mastery.clamp(0.0, 1.0),
+                minHeight: 5,
+                backgroundColor: Colors.grey.shade100,
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(Color(0xFFFF6D00)),
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _LegendDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-        ),
-      ],
     );
   }
 }
 
 class _EvidenceTile extends StatelessWidget {
   final Evidence evidence;
+
   const _EvidenceTile({required this.evidence});
 
   @override
@@ -679,6 +558,7 @@ class _EvidenceTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Row(
         children: [
@@ -697,7 +577,8 @@ class _EvidenceTile extends StatelessWidget {
               children: [
                 Text(
                   evidence.description,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w500),
                 ),
                 Text(
                   evidence.conceptId,
@@ -716,149 +597,9 @@ class _EvidenceTile extends StatelessWidget {
   }
 }
 
-class _ConceptSummaryCard extends StatelessWidget {
-  final LearnerConcept concept;
-  const _ConceptSummaryCard({required this.concept});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: SkillTwinCard(
-        onTap: () => context.push('/journey/concept/${concept.conceptId}'),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  concept.conceptId.toUpperCase().replaceAll('_', ' '),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                _StatusBadge(status: concept.status),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                _MiniStat(label: 'Mastery', value: concept.mastery),
-                _MiniStat(label: 'Confidence', value: concept.confidence),
-                _MiniStat(label: 'Retention', value: concept.retention),
-              ],
-            ),
-            if (concept.risk > 0.6) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.warning, size: 12, color: Colors.red.shade800),
-                    const SizedBox(width: 4),
-                    Text(
-                      'High retention risk',
-                      style: TextStyle(color: Colors.red.shade800, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  final String label;
-  final double value;
-
-  const _MiniStat({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = value > 0.7 ? Colors.green : (value > 0.4 ? Colors.orange : Colors.red);
-
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: value,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${(value * 100).toInt()}%',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final ConceptStatus status;
-  const _StatusBadge({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    Color color;
-    switch (status) {
-      case ConceptStatus.mastered: color = Colors.green; break;
-      case ConceptStatus.learning: color = Colors.blue; break;
-      case ConceptStatus.needsReview: color = Colors.orange; break;
-      case ConceptStatus.uncertain: color = Colors.red; break;
-      default: color = Colors.grey;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        status.name.toUpperCase(),
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-}
-
 class _CircularProgress extends StatelessWidget {
   final double value;
+
   const _CircularProgress({required this.value});
 
   @override
@@ -867,17 +608,17 @@ class _CircularProgress extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         SizedBox(
-          width: 70,
-          height: 70,
+          width: 68,
+          height: 68,
           child: CircularProgressIndicator(
-            value: value,
-            strokeWidth: 8,
-            backgroundColor: Colors.orange.withOpacity(0.1),
-            valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
+            value: value.clamp(0.0, 1.0),
+            strokeWidth: 7,
+            backgroundColor: const Color(0xFFFF6D00).withValues(alpha: 0.12),
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF6D00)),
             strokeCap: StrokeCap.round,
           ),
         ),
-        Icon(Icons.psychology, color: Colors.orange.shade800, size: 32),
+        Icon(Icons.psychology, color: Colors.orange.shade800, size: 30),
       ],
     );
   }

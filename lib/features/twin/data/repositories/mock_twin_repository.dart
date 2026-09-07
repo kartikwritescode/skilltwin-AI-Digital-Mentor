@@ -1,8 +1,36 @@
 import '../../domain/repositories/twin_repository.dart';
 import '../../../../core/models/learner_concept.dart';
 import '../../../../core/models/evidence.dart';
+import '../../../../core/models/twin_dashboard.dart';
 
 class MockTwinRepository implements TwinRepository {
+  @override
+  Future<TwinDashboardData> getTwinDashboard() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return const TwinDashboardData(
+      userId: 'mock-user',
+      hasSufficientData: true,
+      overallMastery: 0.68,
+      learningLevel: 'Intermediate',
+      strongestAreas: [
+        AreaMasteryItem(name: 'Python', masteryScore: 0.95, status: 'MASTERED'),
+        AreaMasteryItem(name: 'Data Wrangling', masteryScore: 0.85, status: 'MASTERED'),
+      ],
+      weakestAreas: [
+        AreaMasteryItem(name: 'Probability', masteryScore: 0.45, status: 'NEEDS_REVISION'),
+      ],
+      conceptsAtRisk: ['Conditional Probability'],
+      consistencyStreak: 5,
+      learningVelocity: 1.2,
+      knowledgeCoverage: 0.4,
+      verifiedEvidenceCount: 15,
+      insights: [
+        "Your understanding of core algorithms is solid.",
+        "Focus on spaced retrieval for probability before proceeding.",
+      ],
+    );
+  }
+
   @override
   Future<List<LearnerConcept>> getLearnerState() async {
     await Future.delayed(const Duration(milliseconds: 600));

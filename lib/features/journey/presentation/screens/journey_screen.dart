@@ -2,23 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/journey_provider.dart';
-import '../widgets/winding_roadmap.dart';
-import '../../../../core/models/journey_node.dart';
+import '../providers/learning_path_provider.dart';
+import '../../../../core/models/learning_path.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
 import '../../../../core/widgets/mentor_app_bar_action.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../../core/widgets/error_state_view.dart';
-import '../../../mentor/presentation/providers/mentor_recommendation_provider.dart';
 
 class JourneyScreen extends ConsumerWidget {
   const JourneyScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final journeyState = ref.watch(journeyProvider);
-    final notifier = ref.read(journeyProvider.notifier);
-    final mentorGuidance = ref.watch(journeyMentorGuidanceProvider);
+    final activePathAsync = ref.watch(activeLearningPathProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
@@ -30,33 +26,29 @@ class JourneyScreen extends ConsumerWidget {
           MentorAppBarAction(),
         ],
       ),
-      body: SafeArea(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          HapticFeedback.lightImpact();
+          ref.invalidate(activeLearningPathProvider);
+        },
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
-            child: Column(
-              children: [
-                _buildHeader(context, notifier.overallProgress, mentorGuidance),
-                Expanded(
-                  child: journeyState.isLoading
-                      ? const SingleChildScrollView(
-                          padding: EdgeInsets.all(24.0),
-                          child: SkeletonCardGroup(count: 3, height: 110),
-                        )
-                      : journeyState.error != null
-                          ? ErrorStateView(
-                              error: journeyState.error!,
-                              onRetry: () => notifier.loadJourney(),
-                            )
-                          : WindingRoadmap(
-                              nodes: journeyState.nodes,
-                              onNodeTap: (node) {
-                                HapticFeedback.selectionClick();
-                                _showNodeDetails(context, node);
-                              },
-                            ),
-                ),
-              ],
+            child: activePathAsync.when(
+              data: (path) {
+                if (path == null) {
+                  return _buildEmptyState(context);
+                }
+                return _buildPathContent(context, path);
+              },
+              loading: () => const SingleChildScrollView(
+                padding: EdgeInsets.all(20.0),
+                child: SkeletonCardGroup(count: 4, height: 120),
+              ),
+              error: (err, _) => ErrorStateView(
+                error: err.toString(),
+                onRetry: () => ref.invalidate(activeLearningPathProvider),
+              ),
             ),
           ),
         ),
@@ -64,316 +56,361 @@ class JourneyScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, double progress, String mentorGuidance) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: SkillTwinCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF6D00).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.explore, color: Color(0xFFFF6D00), size: 20),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'WHERE AM I GOING?',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                            color: const Color(0xFFFF6D00),
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                    ),
-                    const Text(
-                      'AI / Machine Learning Engineer',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Color(0xFF212121),
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  '${(progress * 100).toInt()}%',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFFFF6D00),
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 7,
-                backgroundColor: const Color(0xFFFF6D00).withValues(alpha: 0.1),
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF6D00)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6D00).withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFFFF6D00).withValues(alpha: 0.15),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.assistant_outlined, size: 16, color: Color(0xFFFF6D00)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      mentorGuidance,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: Colors.grey.shade800,
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+  Widget _buildEmptyState(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(32.0),
+      children: [
+        const SizedBox(height: 60),
+        Icon(Icons.map_outlined, size: 72, color: Colors.grey.shade400),
+        const SizedBox(height: 24),
+        const Text(
+          'No Learning Path Active',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF212121),
+          ),
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(
+          'Set a target outcome to have your AI mentor generate a deep, personalized learning curriculum.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.4),
+        ),
+        const SizedBox(height: 32),
+        Center(
+          child: ElevatedButton.icon(
+            onPressed: () => context.push('/onboarding'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6D00),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text(
+              'Set Learning Goal',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  void _showNodeDetails(BuildContext context, JourneyNode node) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _NodeDetailsBottomSheet(node: node),
+  Widget _buildPathContent(BuildContext context, LearningPath path) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      children: [
+        _RoadmapHeader(path: path),
+        const SizedBox(height: 20),
+        ...path.sections.map((section) => _SectionGroup(
+              section: section,
+              onTopicTap: (topic) {
+                HapticFeedback.lightImpact();
+                context.push('/journey/topic/${topic.id}');
+              },
+            )),
+        const SizedBox(height: 40),
+      ],
     );
   }
 }
 
-class _NodeDetailsBottomSheet extends StatelessWidget {
-  final JourneyNode node;
+class _RoadmapHeader extends StatelessWidget {
+  final LearningPath path;
 
-  const _NodeDetailsBottomSheet({required this.node});
+  const _RoadmapHeader({required this.path});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
+    final progressPct = (path.progress * 100).toInt();
+
+    return SkillTwinCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
           Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6D00).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.explore, color: Color(0xFFFF6D00), size: 20),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      node.phase?.toUpperCase() ?? 'PHASE',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: const Color(0xFFFF6D00),
+                      'ACTIVE ROADMAP (${path.targetLevel.toUpperCase()})',
+                      style: const TextStyle(
+                        color: Color(0xFFFF6D00),
                         fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        letterSpacing: 1.1,
                       ),
                     ),
-                    const SizedBox(height: 4),
                     Text(
-                      node.title,
-                      style: theme.textTheme.headlineSmall?.copyWith(
+                      path.title,
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xFF212121),
                       ),
                     ),
                   ],
                 ),
               ),
-              _StatusChip(status: node.status),
+              Text(
+                '$progressPct%',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Color(0xFFFF6D00),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
-          if (node.whyItMatters != null) ...[
-            Text(
-              'WHY THIS STEP MATTERS',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
-              ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: path.progress.clamp(0.0, 1.0),
+              minHeight: 7,
+              backgroundColor: const Color(0xFFFF6D00).withValues(alpha: 0.12),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF6D00)),
             ),
-            const SizedBox(height: 6),
-            Text(node.whyItMatters!, style: theme.textTheme.bodyMedium?.copyWith(height: 1.4)),
-            const SizedBox(height: 18),
-          ],
-          if (node.prerequisites.isNotEmpty) ...[
-            Text(
-              'PREREQUISITES',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: node.prerequisites.map((p) => Chip(
-                label: Text(p, style: const TextStyle(fontSize: 12)),
-                backgroundColor: Colors.grey.shade100,
-                side: BorderSide.none,
-              )).toList(),
-            ),
-            const SizedBox(height: 18),
-          ],
-          if (node.mentorRecommendation != null) ...[
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6D00).withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFFF6D00).withValues(alpha: 0.15)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.assistant, color: Color(0xFFFF6D00), size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'MENTOR RECOMMENDATION',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFFF6D00),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          node.mentorRecommendation!,
-                          style: const TextStyle(fontSize: 12.5, height: 1.35),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-          ],
+          ),
+          const SizedBox(height: 10),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                flex: 3,
-                child: ElevatedButton(
-                  onPressed: node.status == NodeStatus.locked ? null : () {
-                    HapticFeedback.lightImpact();
-                    Navigator.pop(context);
-                    context.push('/session/${node.id}');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF6D00),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: Text(
-                    node.status == NodeStatus.completed ? 'Review Practice' : 'Start Practice Session',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
+              Text(
+                '${path.completedTopics} of ${path.totalTopics} topics completed',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 2,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.pop(context);
-                    context.push('/mentor');
-                  },
-                  icon: const Icon(Icons.chat_bubble_outline, size: 15),
-                  label: const Text('Discuss'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
+              if (path.estimatedDuration != null)
+                Text(
+                  path.estimatedDuration!,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
-              ),
             ],
           ),
-          const SizedBox(height: 12),
         ],
       ),
     );
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  final NodeStatus status;
-  const _StatusChip({required this.status});
+class _SectionGroup extends StatelessWidget {
+  final LearningSection section;
+  final ValueChanged<LearningTopic> onTopicTap;
+
+  const _SectionGroup({
+    required this.section,
+    required this.onTopicTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    Color color;
-    String label = status.name.toUpperCase();
-    
-    switch (status) {
-      case NodeStatus.completed: color = Colors.green; break;
-      case NodeStatus.current: color = const Color(0xFFFF6D00); break;
-      case NodeStatus.needsAttention: color = Colors.redAccent; break;
-      case NodeStatus.upcoming: color = Colors.blueGrey; break;
-      case NodeStatus.locked: color = Colors.grey; break;
-      case NodeStatus.skipped: color = Colors.grey; break;
-    }
+    final sectionPct = (section.progress * 100).toInt();
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 16.0, bottom: 8.0, left: 4.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  section.title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF212121),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: sectionPct == 100
+                      ? Colors.green.shade50
+                      : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$sectionPct%',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: sectionPct == 100
+                        ? Colors.green.shade800
+                        : Colors.grey.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (section.description != null && section.description!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10.0, left: 4.0),
+            child: Text(
+              section.description!,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
+        ...section.topics.map((topic) => _TopicTile(
+              topic: topic,
+              onTap: () => onTopicTap(topic),
+            )),
+      ],
+    );
+  }
+}
+
+class _TopicTile extends StatelessWidget {
+  final LearningTopic topic;
+  final VoidCallback onTap;
+
+  const _TopicTile({
+    required this.topic,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+      margin: const EdgeInsets.only(bottom: 8),
+      child: SkillTwinCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            _StatusIcon(status: topic.status),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    topic.title,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF212121),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          topic.difficulty.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.schedule, size: 12, color: Colors.grey.shade500),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${topic.estimatedMinutes}m',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      if (topic.status == TopicStatus.completed &&
+                          topic.masteryScore > 0) ...[
+                        const SizedBox(width: 10),
+                        Text(
+                          '${(topic.masteryScore * 100).toInt()}% mastery',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+          ],
+        ),
       ),
     );
+  }
+}
+
+class _StatusIcon extends StatelessWidget {
+  final TopicStatus status;
+
+  const _StatusIcon({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    switch (status) {
+      case TopicStatus.completed:
+        return Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.check_circle, color: Colors.green, size: 20),
+        );
+      case TopicStatus.learning:
+        return Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF6D00).withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.play_circle_fill,
+              color: Color(0xFFFF6D00), size: 20),
+        );
+      case TopicStatus.needsRevision:
+        return Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade50,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.history_edu, color: Colors.amber.shade800, size: 20),
+        );
+      case TopicStatus.notStarted:
+        return Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.circle_outlined, color: Colors.grey.shade400, size: 20),
+        );
+    }
   }
 }

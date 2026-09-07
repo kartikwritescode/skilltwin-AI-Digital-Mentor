@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/widgets/direction_aware_navigation.dart';
 
 class MainWrapper extends ConsumerWidget {
   final Widget child;
@@ -10,10 +11,15 @@ class MainWrapper extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final selectedIndex = _calculateSelectedIndex(context);
+
     return Scaffold(
-      body: child,
+      body: DirectionAwareNavigation(
+        currentIndex: selectedIndex,
+        child: child,
+      ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _calculateSelectedIndex(context),
+        selectedIndex: selectedIndex,
         onDestinationSelected: (index) => _onItemTapped(index, context),
         destinations: const [
           NavigationDestination(
@@ -63,10 +69,10 @@ class MainWrapper extends ConsumerWidget {
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
     if (location == '/') return 0;
-    if (location == '/journey') return 1;
-    if (location == '/twin') return 2;
-    if (location == '/library') return 3;
-    if (location == '/profile') return 4;
+    if (location.startsWith('/journey')) return 1;
+    if (location.startsWith('/twin')) return 2;
+    if (location.startsWith('/library')) return 3;
+    if (location.startsWith('/profile')) return 4;
     return 0;
   }
 

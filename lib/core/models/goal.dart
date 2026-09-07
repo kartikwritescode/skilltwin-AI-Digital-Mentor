@@ -8,6 +8,9 @@ class Goal {
   final String? desiredOutcome;
   final DateTime? deadline;
   final String? currentLevel;
+  final String? targetLevel;
+  final String? customTarget;
+  final String? activePathId;
   final int dailyMinutes;
   final String? dailyTime;
   final List<String> existingKnowledge;
@@ -28,6 +31,9 @@ class Goal {
     String? desiredOutcome,
     this.deadline,
     this.currentLevel,
+    this.targetLevel,
+    this.customTarget,
+    this.activePathId,
     int? dailyMinutes,
     String? dailyTime,
     this.existingKnowledge = const [],
@@ -82,13 +88,16 @@ class Goal {
       deadline: json['deadline'] != null
           ? DateTime.tryParse(json['deadline'].toString())
           : null,
-      currentLevel: json['current_level'],
+      currentLevel: json['current_level'] ?? json['target_level'],
+      targetLevel: json['target_level'] ?? json['current_level'] ?? 'Intermediate',
+      customTarget: json['custom_target'],
+      activePathId: json['active_journey_id'] ?? json['active_path_id'],
       dailyMinutes: dMinutes,
       dailyTime: json['daily_time'] ?? '$dMinutes mins/day',
       existingKnowledge: parsedKnowledge,
       preferredResources: List<String>.from(json['preferred_resources'] ?? []),
       constraints: json['constraints'],
-      targetBenchmark: json['target_benchmark'],
+      targetBenchmark: json['target_benchmark'] ?? json['custom_target'],
       progress: ((json['progress'] ?? 0.0) as num).toDouble(),
       status: statusEnum,
       isCompleted: completedBool,
@@ -105,10 +114,14 @@ class Goal {
         'id': id,
         'user_id': userId,
         'title': title,
+        'learning_goal': title,
         'description': description,
         'desired_outcome': desiredOutcome,
         'deadline': deadline?.toIso8601String().split('T').first,
         'current_level': currentLevel,
+        'target_level': targetLevel ?? currentLevel ?? 'Intermediate',
+        'custom_target': customTarget,
+        'active_path_id': activePathId,
         'daily_minutes': dailyMinutes,
         'daily_time': dailyTime,
         'existing_knowledge': existingKnowledge.isNotEmpty
@@ -132,6 +145,9 @@ class Goal {
     String? desiredOutcome,
     DateTime? deadline,
     String? currentLevel,
+    String? targetLevel,
+    String? customTarget,
+    String? activePathId,
     int? dailyMinutes,
     String? dailyTime,
     List<String>? existingKnowledge,
@@ -152,6 +168,9 @@ class Goal {
       desiredOutcome: desiredOutcome ?? this.desiredOutcome,
       deadline: deadline ?? this.deadline,
       currentLevel: currentLevel ?? this.currentLevel,
+      targetLevel: targetLevel ?? this.targetLevel,
+      customTarget: customTarget ?? this.customTarget,
+      activePathId: activePathId ?? this.activePathId,
       dailyMinutes: dailyMinutes ?? this.dailyMinutes,
       dailyTime: dailyTime ?? this.dailyTime,
       existingKnowledge: existingKnowledge ?? this.existingKnowledge,

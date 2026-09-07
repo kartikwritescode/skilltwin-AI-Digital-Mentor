@@ -1,22 +1,35 @@
 import '../../../../core/networking/api_client.dart';
 import '../../../../core/models/learner_concept.dart';
 import '../../../../core/models/evidence.dart';
+import '../../../../core/models/twin_dashboard.dart';
 import '../../domain/repositories/twin_repository.dart';
-import 'mock_twin_repository.dart';
 
 class TwinRepositoryImpl implements TwinRepository {
   final ApiClient _apiClient;
-  final MockTwinRepository _fallback = MockTwinRepository();
 
   TwinRepositoryImpl(this._apiClient);
+
+  @override
+  Future<TwinDashboardData> getTwinDashboard() async {
+    final response = await _apiClient.get('/twin/dashboard');
+    if (response.data is Map<String, dynamic>) {
+      return TwinDashboardData.fromJson(response.data as Map<String, dynamic>);
+    }
+    return const TwinDashboardData(userId: '');
+  }
 
   @override
   Future<List<LearnerConcept>> getLearnerState() async {
     try {
       final response = await _apiClient.get('/twin/concepts');
-      return (response.data as List).map((e) => LearnerConcept.fromJson(e)).toList();
+      if (response.data is List) {
+        return (response.data as List)
+            .map((e) => LearnerConcept.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
     } catch (_) {
-      return _fallback.getLearnerState();
+      return [];
     }
   }
 
@@ -24,29 +37,30 @@ class TwinRepositoryImpl implements TwinRepository {
   Future<List<Evidence>> getEvidenceHistory() async {
     try {
       final response = await _apiClient.get('/twin/evidence');
-      return (response.data as List).map((e) => Evidence.fromJson(e)).toList();
+      if (response.data is List) {
+        return (response.data as List)
+            .map((e) => Evidence.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
     } catch (_) {
-      return _fallback.getEvidenceHistory();
+      return [];
     }
   }
 
   @override
   Future<LearnerConcept> getConceptById(String conceptId) async {
-    try {
-      final response = await _apiClient.get('/concepts/$conceptId');
-      return LearnerConcept.fromJson(response.data);
-    } catch (_) {
-      return _fallback.getConceptById(conceptId);
-    }
+    final response = await _apiClient.get('/concepts/$conceptId');
+    return LearnerConcept.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
   Future<Map<String, dynamic>> getTwinOverview() async {
     try {
       final response = await _apiClient.get('/twin');
-      return Map<String, dynamic>.from(response.data);
+      return Map<String, dynamic>.from(response.data as Map);
     } catch (_) {
-      return _fallback.getTwinOverview();
+      return {};
     }
   }
 
@@ -54,9 +68,9 @@ class TwinRepositoryImpl implements TwinRepository {
   Future<Map<String, dynamic>> getGraphTopology() async {
     try {
       final response = await _apiClient.get('/concepts/graph/topology');
-      return Map<String, dynamic>.from(response.data);
+      return Map<String, dynamic>.from(response.data as Map);
     } catch (_) {
-      return _fallback.getGraphTopology();
+      return {};
     }
   }
 }

@@ -56,13 +56,12 @@ class ProfileScreen extends ConsumerWidget {
               // ── 3. Current Active Goal ──
               _buildSectionHeader('Current Focus'),
               activeGoalAsync.when(
-                data: (goal) => SkillTwinCard(
-                  padding: const EdgeInsets.all(20),
-                  onTap: () => context.go('/journey'),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                data: (goal) {
+                  if (goal == null) {
+                    return SkillTwinCard(
+                      padding: const EdgeInsets.all(20),
+                      onTap: () => context.push('/onboarding'),
+                      child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(8),
@@ -81,67 +80,117 @@ class ProfileScreen extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  goal.title,
-                                  style: const TextStyle(
+                                const Text(
+                                  'No Active Goal',
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16,
                                     color: AppTheme.textPrimary,
                                   ),
                                 ),
-                                if (goal.description != null && goal.description!.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    goal.description!,
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Tap to set your personalized learning goal',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: AppTheme.textSecondary,
                                   ),
-                                ],
+                                ),
                               ],
                             ),
                           ),
                           const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: (goal.progressPercent / 100).clamp(0.0, 1.0),
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryAccent),
-                          minHeight: 6,
+                    );
+                  }
+                  return SkillTwinCard(
+                    padding: const EdgeInsets.all(20),
+                    onTap: () => context.go('/journey'),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryAccent.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.flag_rounded,
+                                color: AppTheme.primaryAccent,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    goal.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                  if (goal.description != null && goal.description!.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      goal.description!,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${goal.progressPercent.toInt()}% Completed',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryAccent,
-                            ),
+                        const SizedBox(height: 16),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            value: (goal.progressPercent / 100).clamp(0.0, 1.0),
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryAccent),
+                            minHeight: 6,
                           ),
-                          Text(
-                            goal.targetBenchmark ?? 'Production Ready',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: AppTheme.textSecondary,
-                              fontWeight: FontWeight.w500,
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${goal.progressPercent.toInt()}% Completed',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.primaryAccent,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                            Text(
+                              goal.targetBenchmark ?? 'Production Ready',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppTheme.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
                 loading: () => const SkillTwinCard(
                   child: Center(
                     child: Padding(

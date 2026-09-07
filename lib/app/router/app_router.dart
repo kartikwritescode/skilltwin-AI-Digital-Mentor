@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/journey/presentation/screens/journey_screen.dart';
+import '../../features/journey/presentation/screens/topic_detail_screen.dart';
 import '../../features/twin/presentation/screens/twin_screen.dart';
 import '../../features/twin/presentation/screens/concept_detail_screen.dart';
 import '../../features/twin/presentation/screens/knowledge_maintenance_screen.dart';
@@ -90,6 +91,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: 'concept/:conceptId',
                 builder: (context, state) => ConceptDetailScreen(
                   conceptId: state.pathParameters['conceptId'] ?? '',
+                ),
+              ),
+              GoRoute(
+                path: 'topic/:topicId',
+                builder: (context, state) => TopicDetailScreen(
+                  topicId: state.pathParameters['topicId'] ?? '',
                 ),
               ),
             ],

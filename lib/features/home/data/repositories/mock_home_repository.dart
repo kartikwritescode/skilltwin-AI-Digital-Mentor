@@ -1,16 +1,28 @@
 import '../../domain/repositories/home_repository.dart';
 import '../../../../core/models/goal.dart';
 import '../../../../core/models/mentor_message.dart';
+import '../../../../core/models/home_dashboard.dart';
 
 class MockHomeRepository implements HomeRepository {
+  @override
+  Future<HomeDashboardData> getHomeDashboard() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return const HomeDashboardData(
+      goalTitle: 'Master Machine Learning',
+      targetLevel: 'Intermediate',
+      overallProgress: 0.35,
+      overallMastery: 0.40,
+      isNewLearner: false,
+    );
+  }
+
   @override
   Future<Goal> getActiveGoal() async {
     await Future.delayed(const Duration(milliseconds: 500));
     return Goal(
       id: '1',
       title: 'Master Machine Learning',
-      constraints:'Go from zero to building production ML models.' ,
-      // description: 'Go from zero to building production ML models.',
+      constraints: 'Go from zero to building production ML models.',
       progress: 0.35,
     );
   }
