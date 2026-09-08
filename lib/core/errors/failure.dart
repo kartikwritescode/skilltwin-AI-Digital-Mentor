@@ -1,6 +1,9 @@
 abstract class Failure {
   final String message;
   Failure(this.message);
+
+  @override
+  String toString() => message;
 }
 
 class NetworkFailure extends Failure {
@@ -17,4 +20,8 @@ class AuthFailure extends Failure {
 
 class ValidationFailure extends Failure {
   ValidationFailure([String message = 'Invalid Input']) : super(message);
+}
+
+class QuotaFailure extends Failure {
+  QuotaFailure([String message = 'API usage limit reached (quota exceeded). Please try again later or verify your API key.']) : super(message);
 }

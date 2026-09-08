@@ -96,9 +96,29 @@ class ApiClient {
   Failure _handleError(DioException e) {
     if (e.response != null) {
       final statusCode = e.response?.statusCode;
-      final message = e.response?.data is Map
-          ? (e.response?.data['message'] ?? e.response?.data['detail'] ?? 'Request failed')
-          : 'Request failed ()';
+      String message = 'Request failed';
+      if (e.response?.data is Map) {
+        final dataMap = e.response!.data as Map;
+        message = (dataMap['error'] is Map ? dataMap['error']['message'] : null) ??
+            dataMap['message'] ??
+            dataMap['detail'] ??
+            'Request failed';
+      } else if (e.response?.data is String && (e.response!.data as String).isNotEmpty) {
+        message = e.response!.data as String;
+      }
+
+      final msgLower = message.toLowerCase();
+      final isQuota = statusCode == 429 ||
+          msgLower.contains('quota') ||
+          msgLower.contains('rate limit') ||
+          msgLower.contains('resource_exhausted') ||
+          msgLower.contains('too many requests');
+
+      if (isQuota) {
+        return QuotaFailure(
+          'API usage limit reached (quota exceeded). Please try again later or verify your Gemini AI API key.',
+        );
+      }
 
       switch (statusCode) {
         case 400:
@@ -110,17 +130,17 @@ class ApiClient {
         case 404:
           return ServerFailure('Resource not found.');
         case 409:
-          return ServerFailure('Conflict: ');
+          return ServerFailure('Conflict: $message');
         case 422:
           return ValidationFailure(message.toString());
         case 429:
-          return ServerFailure('Too many requests. Please slow down.');
+          return QuotaFailure('Too many requests. API quota reached. Please slow down.');
         case 500:
         case 502:
         case 503:
           return ServerFailure('Server is waking up or temporarily unavailable. Please retry in a few seconds.');
         default:
-          return ServerFailure('Unexpected error: ');
+          return ServerFailure('Unexpected error ($statusCode): $message');
       }
     }
     if (e.type == DioExceptionType.connectionTimeout ||

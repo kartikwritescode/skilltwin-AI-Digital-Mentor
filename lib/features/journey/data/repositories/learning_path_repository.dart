@@ -1,4 +1,5 @@
 import '../../../../core/networking/api_client.dart';
+import '../../../../core/errors/failure.dart';
 import '../../../../core/models/learning_path.dart';
 import '../../../../core/models/topic_detail.dart';
 
@@ -33,12 +34,19 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
 
   @override
   Future<LearningPath?> getActiveLearningPath() async {
-    final response = await _apiClient.get('/learning-paths/active');
-    if (response.data == null) return null;
-    if (response.data is Map<String, dynamic>) {
-      return LearningPath.fromJson(response.data as Map<String, dynamic>);
+    try {
+      final response = await _apiClient.get('/learning-paths/active');
+      if (response.data == null) return null;
+      if (response.data is Map<String, dynamic>) {
+        return LearningPath.fromJson(response.data as Map<String, dynamic>);
+      }
+      return null;
+    } catch (e) {
+      if (e is ServerFailure && e.message.toLowerCase().contains('not found')) {
+        return null;
+      }
+      rethrow;
     }
-    return null;
   }
 
   @override

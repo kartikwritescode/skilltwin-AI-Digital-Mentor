@@ -1,4 +1,5 @@
 import '../../../../core/networking/api_client.dart';
+import '../../../../core/errors/failure.dart';
 import '../../../../core/models/learner_concept.dart';
 import '../../../../core/models/evidence.dart';
 import '../../../../core/models/twin_dashboard.dart';
@@ -11,11 +12,18 @@ class TwinRepositoryImpl implements TwinRepository {
 
   @override
   Future<TwinDashboardData> getTwinDashboard() async {
-    final response = await _apiClient.get('/twin/dashboard');
-    if (response.data is Map<String, dynamic>) {
-      return TwinDashboardData.fromJson(response.data as Map<String, dynamic>);
+    try {
+      final response = await _apiClient.get('/twin/dashboard');
+      if (response.data is Map<String, dynamic>) {
+        return TwinDashboardData.fromJson(response.data as Map<String, dynamic>);
+      }
+      return const TwinDashboardData(userId: '');
+    } catch (e) {
+      if (e is ServerFailure && e.message.toLowerCase().contains('not found')) {
+        return const TwinDashboardData(userId: '', hasSufficientData: false);
+      }
+      rethrow;
     }
-    return const TwinDashboardData(userId: '');
   }
 
   @override

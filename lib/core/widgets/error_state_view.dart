@@ -17,6 +17,52 @@ class ErrorStateView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cleanError = error.replaceFirst(RegExp(r'^(Exception:\s*|Failure:\s*)'), '').trim();
+    final lower = cleanError.toLowerCase();
+
+    final isQuota = lower.contains('quota') ||
+        lower.contains('rate limit') ||
+        lower.contains('resource_exhausted') ||
+        lower.contains('too many requests') ||
+        lower.contains('429');
+
+    final isWakingUp = lower.contains('warming up') ||
+        lower.contains('waking up') ||
+        lower.contains('timed out') ||
+        lower.contains('timeout');
+
+    final effectiveTitle = isQuota
+        ? 'AI Quota Limit Reached'
+        : isWakingUp
+            ? 'Backend Server Connecting'
+            : title;
+
+    final effectiveIcon = isQuota
+        ? Icons.hourglass_top_rounded
+        : isWakingUp
+            ? Icons.cloud_sync_outlined
+            : Icons.cloud_off_outlined;
+
+    final iconColor = isQuota
+        ? const Color(0xFFE65100)
+        : isWakingUp
+            ? const Color(0xFF1976D2)
+            : Colors.redAccent;
+
+    final effectiveMessage = isQuota
+        ? (cleanError.isNotEmpty
+            ? cleanError
+            : 'The AI model quota limit was reached. Please wait a few moments before retrying, or verify your Gemini API key.')
+        : isWakingUp
+            ? 'The backend server is waking up from free-tier inactivity (~30-50s). Please tap below to retry.'
+            : cleanError;
+
+    final buttonLabel = isQuota
+        ? 'Try Again'
+        : isWakingUp
+            ? 'Retry Connection'
+            : retryLabel;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
@@ -26,18 +72,18 @@ class ErrorStateView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.08),
+                color: iconColor.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.cloud_off_outlined,
+              child: Icon(
+                effectiveIcon,
                 size: 40,
-                color: Colors.redAccent,
+                color: iconColor,
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              title,
+              effectiveTitle,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
@@ -47,7 +93,7 @@ class ErrorStateView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              error,
+              effectiveMessage,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.grey.shade600,
@@ -62,7 +108,7 @@ class ErrorStateView extends StatelessWidget {
                 onRetry();
               },
               icon: const Icon(Icons.refresh, size: 18),
-              label: Text(retryLabel),
+              label: Text(buttonLabel),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF6D00),
                 foregroundColor: Colors.white,
