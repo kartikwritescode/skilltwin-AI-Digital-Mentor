@@ -42,8 +42,15 @@ class HomeRepositoryImpl implements HomeRepository {
   Future<Goal?> getActiveGoal() async {
     try {
       final response = await _apiClient.get('/goals');
-      if (response.data is List && (response.data as List).isNotEmpty) {
-        return Goal.fromJson((response.data as List).first as Map<String, dynamic>);
+      if (response.data is List) {
+        final list = (response.data as List)
+            .map((e) => Goal.fromJson(e as Map<String, dynamic>))
+            .toList();
+        if (list.isEmpty) return null;
+        return list.firstWhere(
+          (g) => g.status == GoalStatus.active,
+          orElse: () => list.first,
+        );
       } else if (response.data is Map<String, dynamic>) {
         return Goal.fromJson(response.data as Map<String, dynamic>);
       }

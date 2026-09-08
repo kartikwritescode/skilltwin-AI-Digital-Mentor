@@ -30,8 +30,15 @@ class GoalRepositoryImpl implements GoalRepository {
   Future<Goal?> getActiveGoal() async {
     try {
       final response = await _apiClient.get('/goals');
-      if (response.data is List && (response.data as List).isNotEmpty) {
-        return Goal.fromJson((response.data as List).first as Map<String, dynamic>);
+      if (response.data is List) {
+        final list = (response.data as List)
+            .map((e) => Goal.fromJson(e as Map<String, dynamic>))
+            .toList();
+        if (list.isEmpty) return null;
+        return list.firstWhere(
+          (g) => g.status == GoalStatus.active,
+          orElse: () => list.first,
+        );
       } else if (response.data is Map<String, dynamic>) {
         return Goal.fromJson(response.data as Map<String, dynamic>);
       }
@@ -54,5 +61,20 @@ class GoalRepositoryImpl implements GoalRepository {
     } catch (_) {
       return [];
     }
+  }
+
+  @override
+  Future<void> updateGoal(String goalId, Map<String, dynamic> updates) async {
+    await _apiClient.patch('/goals/$goalId', data: updates);
+  }
+
+  @override
+  Future<void> deleteGoal(String goalId) async {
+    await _apiClient.delete('/goals/$goalId');
+  }
+
+  @override
+  Future<void> setActiveGoal(String goalId) async {
+    await _apiClient.patch('/goals/$goalId', data: {'status': 'ACTIVE'});
   }
 }

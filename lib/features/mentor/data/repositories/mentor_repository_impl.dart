@@ -29,9 +29,16 @@ class MentorRepositoryImpl implements MentorRepository {
   }
 
   @override
-  Future<MentorMessage> sendMessage(String text) async {
+  Future<MentorMessage> sendMessage(String text, {Map<String, dynamic>? context}) async {
     try {
-      final response = await _apiClient.post('/mentor/message', data: {'message': text, 'text': text});
+      final response = await _apiClient.post(
+        '/mentor/message',
+        data: {
+          'message': text,
+          'text': text,
+          if (context != null) 'context': context,
+        },
+      );
       if (response.data is Map<String, dynamic>) {
         // Backend returns {"reply": String, ...} or standard MentorMessage json
         final data = response.data as Map<String, dynamic>;
@@ -47,9 +54,9 @@ class MentorRepositoryImpl implements MentorRepository {
         }
         return MentorMessage.fromJson(data);
       }
-      return _fallback.sendMessage(text);
+      return _fallback.sendMessage(text, context: context);
     } catch (_) {
-      return _fallback.sendMessage(text);
+      return _fallback.sendMessage(text, context: context);
     }
   }
 

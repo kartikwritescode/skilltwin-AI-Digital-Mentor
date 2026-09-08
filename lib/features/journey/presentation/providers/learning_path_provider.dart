@@ -78,6 +78,8 @@ final activeLearningPathProvider = StateNotifierProvider<
   return ActiveLearningPathNotifier(repo);
 });
 
+final learningPathProvider = activeLearningPathProvider;
+
 // -----------------------------------------------------------------------------
 // Topic Detail Notifier (Optimistic & Reactive)
 // -----------------------------------------------------------------------------
