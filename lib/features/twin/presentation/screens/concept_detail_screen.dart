@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/twin_provider.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
 import '../../../../core/models/learner_concept.dart';
+import '../../../../core/utils/mastery_format.dart';
 
 class ConceptDetailScreen extends ConsumerWidget {
   final String conceptId;
@@ -99,7 +100,7 @@ class ConceptDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '${(concept.mastery * 100).toInt()}%',
+            '${concept.mastery.toMasteryPercentage}%',
             style: Theme.of(context).textTheme.displayMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.orange.shade800,
@@ -109,9 +110,9 @@ class ConceptDetailScreen extends ConsumerWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: concept.mastery,
+              value: concept.mastery.toMasteryFraction,
               minHeight: 8,
-              backgroundColor: Colors.orange.withOpacity(0.1),
+              backgroundColor: Colors.orange.withValues(alpha: 0.1),
               valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
             ),
           ),
@@ -123,14 +124,34 @@ class ConceptDetailScreen extends ConsumerWidget {
   Widget _buildMetricsGrid(BuildContext context, LearnerConcept concept) {
     return GridView.count(
       crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.8,
+      childAspectRatio: 1.4,
       children: [
-        _MetricTile(label: 'Confidence', value: concept.confidence),
-        _MetricTile(label: 'Retention', value: concept.retention),
+        _MetricTile(label: 'CONFIDENCE', value: concept.confidence),
+        _MetricTile(label: 'RETENTION', value: concept.retention),
+        _MetricTile(label: 'FORGETTING RISK', value: concept.risk),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('STATUS', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(
+                concept.status.name.toUpperCase(),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -141,7 +162,7 @@ class ConceptDetailScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.orange.withOpacity(0.2)),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,10 +210,10 @@ class ConceptDetailScreen extends ConsumerWidget {
   }
 
   String _getMockRecommendation(LearnerConcept concept) {
-    if (concept.risk > 0.7) {
-      return "You're at high risk of forgetting this. I recommend a quick 5-minute retrieval session today to reinforce the mental model.";
+    if (concept.risk.toMasteryFraction > 0.7) {
+      return "You're at high risk of forgetting this. I recommend a focused retrieval session today to reinforce the mental model.";
     }
-    if (concept.mastery < 0.4) {
+    if (concept.mastery.toMasteryFraction < 0.4) {
       return "This is a new area for you. Let's start with high-level conceptual mapping before diving into implementation details.";
     }
     if (concept.confidence < concept.mastery) {
@@ -224,7 +245,8 @@ class _MetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = value > 0.7 ? Colors.green : (value > 0.4 ? Colors.orange : Colors.red);
+    final frac = value.toMasteryFraction;
+    final color = frac > 0.7 ? Colors.green : (frac > 0.4 ? Colors.orange : Colors.red);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -241,14 +263,14 @@ class _MetricTile extends StatelessWidget {
             children: [
               Expanded(
                 child: LinearProgressIndicator(
-                  value: value,
+                  value: frac,
                   minHeight: 4,
                   backgroundColor: Colors.grey.shade100,
                   valueColor: AlwaysStoppedAnimation<Color>(color),
                 ),
               ),
               const SizedBox(width: 8),
-              Text('${(value * 100).toInt()}%',
+              Text('${value.toMasteryPercentage}%',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
             ],
           ),

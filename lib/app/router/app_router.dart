@@ -99,6 +99,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                   topicId: state.pathParameters['topicId'] ?? '',
                 ),
               ),
+              GoRoute(
+                path: 'topics/:topicId',
+                builder: (context, state) => TopicDetailScreen(
+                  topicId: state.pathParameters['topicId'] ?? '',
+                ),
+              ),
             ],
           ),
           GoRoute(

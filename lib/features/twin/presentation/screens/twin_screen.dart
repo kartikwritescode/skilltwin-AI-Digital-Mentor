@@ -10,6 +10,7 @@ import '../../../../core/widgets/skilltwin_card.dart';
 import '../../../../core/widgets/mentor_app_bar_action.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../../core/widgets/error_state_view.dart';
+import '../../../../core/utils/mastery_format.dart';
 
 class TwinScreen extends ConsumerWidget {
   const TwinScreen({super.key});
@@ -261,7 +262,7 @@ class _TwinMasteryOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final masteryPct = (data.overallMastery * 100).toInt();
+    final masteryPct = data.overallMastery.toMasteryPercentage;
 
     return SkillTwinCard(
       padding: const EdgeInsets.all(24),
@@ -319,7 +320,7 @@ class _TwinMasteryOverview extends StatelessWidget {
               ],
             ),
           ),
-          _CircularProgress(value: data.overallMastery),
+          _CircularProgress(value: data.overallMastery.toMasteryFraction),
         ],
       ),
     );
@@ -518,7 +519,7 @@ class _ConceptSummaryCard extends StatelessWidget {
                       fontWeight: FontWeight.bold, fontSize: 14.5),
                 ),
                 Text(
-                  '${(concept.mastery * 100).toInt()}% mastery',
+                  '${concept.mastery.toMasteryPercentage}% mastery',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
@@ -531,7 +532,7 @@ class _ConceptSummaryCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: concept.mastery.clamp(0.0, 1.0),
+                value: concept.mastery.toMasteryFraction,
                 minHeight: 5,
                 backgroundColor: Colors.grey.shade100,
                 valueColor:

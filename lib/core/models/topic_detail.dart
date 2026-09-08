@@ -10,6 +10,7 @@ class TopicDetailData {
   final int estimatedMinutes;
   final List<String> prerequisites;
   final List<String> learningObjectives;
+  final List<String> keyConcepts;
   final String status;
   final double masteryScore;
   final double confidenceScore;
@@ -36,6 +37,7 @@ class TopicDetailData {
     required this.estimatedMinutes,
     this.prerequisites = const [],
     this.learningObjectives = const [],
+    this.keyConcepts = const [],
     required this.status,
     this.masteryScore = 0.0,
     this.confidenceScore = 0.0,
@@ -67,6 +69,10 @@ class TopicDetailData {
               .toList() ??
           const [],
       learningObjectives: (json['learning_objectives'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      keyConcepts: (json['key_concepts'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const [],
@@ -104,6 +110,7 @@ class TopicDetailData {
         'estimated_minutes': estimatedMinutes,
         'prerequisites': prerequisites,
         'learning_objectives': learningObjectives,
+        'key_concepts': keyConcepts,
         'status': status,
         'mastery_score': masteryScore,
         'confidence_score': confidenceScore,

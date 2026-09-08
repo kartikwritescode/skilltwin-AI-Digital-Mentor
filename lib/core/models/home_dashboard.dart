@@ -20,6 +20,18 @@ class HomeDashboardData {
   final bool isNewLearner;
   final List<String> insights;
 
+  // Dynamic Schedule & Backlog Tracking
+  final DateTime? targetDeadline;
+  final int daysRemaining;
+  final String scheduleStatus; // ON_TRACK, BEHIND_SCHEDULE, AHEAD_OF_SCHEDULE, COMPLETED
+  final int backlogCount;
+  final String? dailyInstructions;
+  final String? todayTargetTopicTitle;
+  final String? todayTargetTopicId;
+  final List<String> todayKeyConcepts;
+  final int todayEstimatedMinutes;
+  final int dailyCommitmentMinutes;
+
   const HomeDashboardData({
     this.goalId,
     this.goalTitle = 'No Active Goal',
@@ -42,6 +54,16 @@ class HomeDashboardData {
     this.revisionDueCount = 0,
     this.isNewLearner = true,
     this.insights = const [],
+    this.targetDeadline,
+    this.daysRemaining = 0,
+    this.scheduleStatus = 'ON_TRACK',
+    this.backlogCount = 0,
+    this.dailyInstructions,
+    this.todayTargetTopicTitle,
+    this.todayTargetTopicId,
+    this.todayKeyConcepts = const [],
+    this.todayEstimatedMinutes = 30,
+    this.dailyCommitmentMinutes = 30,
   });
 
   factory HomeDashboardData.fromJson(Map<String, dynamic> json) {
@@ -73,6 +95,23 @@ class HomeDashboardData {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      targetDeadline: json['target_deadline'] != null
+          ? DateTime.tryParse(json['target_deadline'].toString())
+          : null,
+      daysRemaining: (json['days_remaining'] as num?)?.toInt() ?? 0,
+      scheduleStatus: json['schedule_status']?.toString() ?? 'ON_TRACK',
+      backlogCount: (json['backlog_count'] as num?)?.toInt() ?? 0,
+      dailyInstructions: json['daily_instructions']?.toString(),
+      todayTargetTopicTitle: json['today_target_topic_title']?.toString(),
+      todayTargetTopicId: json['today_target_topic_id']?.toString(),
+      todayKeyConcepts: (json['today_key_concepts'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      todayEstimatedMinutes:
+          (json['today_estimated_minutes'] as num?)?.toInt() ?? 30,
+      dailyCommitmentMinutes:
+          (json['daily_commitment_minutes'] as num?)?.toInt() ?? 30,
     );
   }
 
@@ -97,5 +136,15 @@ class HomeDashboardData {
         'revision_due_count': revisionDueCount,
         'is_new_learner': isNewLearner,
         'insights': insights,
+        'target_deadline': targetDeadline?.toIso8601String(),
+        'days_remaining': daysRemaining,
+        'schedule_status': scheduleStatus,
+        'backlog_count': backlogCount,
+        'daily_instructions': dailyInstructions,
+        'today_target_topic_title': todayTargetTopicTitle,
+        'today_target_topic_id': todayTargetTopicId,
+        'today_key_concepts': todayKeyConcepts,
+        'today_estimated_minutes': todayEstimatedMinutes,
+        'daily_commitment_minutes': dailyCommitmentMinutes,
       };
 }

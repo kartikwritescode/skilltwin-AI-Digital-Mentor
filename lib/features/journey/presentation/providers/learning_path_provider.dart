@@ -40,8 +40,8 @@ class ActiveLearningPathNotifier
             return t.copyWith(
               status: newStatus,
               masteryScore: newStatus == TopicStatus.completed
-                  ? 1.0
-                  : (newStatus == TopicStatus.learning ? 0.25 : t.masteryScore),
+                  ? 100.0
+                  : (newStatus == TopicStatus.learning ? 25.0 : t.masteryScore),
               completedAt: newStatus == TopicStatus.completed
                   ? DateTime.now()
                   : t.completedAt,

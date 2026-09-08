@@ -17,6 +17,8 @@ class GoalRepositoryImpl implements GoalRepository {
         if (goal.customTarget != null && goal.customTarget!.isNotEmpty)
           'custom_target': goal.customTarget,
         'daily_minutes': goal.dailyMinutes,
+        if (goal.deadline != null)
+          'deadline': goal.deadline!.toIso8601String().split('T').first,
         'current_knowledge': goal.existingKnowledge,
         'learning_preferences': 'Hands-on and project-focused',
       },

@@ -3,6 +3,7 @@ import 'package:skilltwin/core/models/learning_path.dart';
 import 'package:skilltwin/core/models/home_dashboard.dart';
 import 'package:skilltwin/core/models/twin_dashboard.dart';
 import 'package:skilltwin/core/models/topic_detail.dart';
+import 'package:skilltwin/core/notifications/notification_messages.dart';
 
 void main() {
   group('Dynamic Learning Models Test Suite', () {
@@ -202,6 +203,111 @@ void main() {
       expect(submission.masteryDelta, 0.15);
       expect(submission.correctCount, 3);
       expect(submission.attempts.first.isCorrect, isTrue);
+    });
+
+    test('LearningTopic and TopicDetailData parse key_concepts correctly', () {
+      final topicJson = {
+        'id': 'top_conc_1',
+        'section_id': 'sec_1',
+        'title': 'Event Loop Mechanics',
+        'order_index': 1,
+        'difficulty': 'intermediate',
+        'estimated_minutes': 30,
+        'key_concepts': ['Call Stack', 'Microtask Queue', 'Event Loop Ticks'],
+        'status': 'not_started',
+      };
+
+      final topic = LearningTopic.fromJson(topicJson);
+      expect(topic.keyConcepts, contains('Call Stack'));
+      expect(topic.keyConcepts, contains('Microtask Queue'));
+      expect(topic.keyConcepts.length, 3);
+
+      final detailJson = {
+        'id': 'top_conc_1',
+        'section_id': 'sec_1',
+        'section_title': 'Runtimes',
+        'path_id': 'path_1',
+        'title': 'Event Loop Mechanics',
+        'order_index': 1,
+        'difficulty': 'intermediate',
+        'estimated_minutes': 30,
+        'status': 'not_started',
+        'key_concepts': ['Microtasks', 'Macrotasks'],
+      };
+
+      final detail = TopicDetailData.fromJson(detailJson);
+      expect(detail.keyConcepts, contains('Microtasks'));
+    });
+
+    test('HomeDashboardData parses schedule, backlog, and daily instructions', () {
+      final dashboardJson = {
+        'goal_id': 'goal_1',
+        'goal_title': 'Full-Stack Developer',
+        'target_level': 'Intermediate',
+        'target_deadline': '2026-10-31',
+        'days_remaining': 53,
+        'schedule_status': 'BEHIND_SCHEDULE',
+        'backlog_count': 3,
+        'daily_instructions': '⚠️ Backlog Alert: You are 3 topics behind schedule!',
+        'today_target_topic_title': 'Async/Await & Promises',
+        'today_target_topic_id': 'top_async',
+        'today_key_concepts': ['Promise States', 'async Desugaring'],
+        'today_estimated_minutes': 35,
+        'daily_commitment_minutes': 45,
+      };
+
+      final dashboard = HomeDashboardData.fromJson(dashboardJson);
+      expect(dashboard.targetDeadline, isNotNull);
+      expect(dashboard.daysRemaining, 53);
+      expect(dashboard.scheduleStatus, 'BEHIND_SCHEDULE');
+      expect(dashboard.backlogCount, 3);
+      expect(dashboard.dailyInstructions, contains('Backlog Alert'));
+      expect(dashboard.todayTargetTopicTitle, 'Async/Await & Promises');
+      expect(dashboard.todayKeyConcepts, contains('Promise States'));
+      expect(dashboard.todayEstimatedMinutes, 35);
+      expect(dashboard.dailyCommitmentMinutes, 45);
+    });
+
+    test('NotificationMessages formats placeholders and returns valid messages', () {
+      const template = NotificationTemplate(
+        title: "Mission: {topic}",
+        body: "Spend {mins} mins on {topic}. Backlog: {backlog}. Streak: {streak}.",
+      );
+      final formattedBody = template.format(
+        template.body,
+        topic: 'Docker Compose',
+        mins: 30,
+        backlog: 2,
+        streak: 5,
+      );
+      expect(formattedBody, contains('Docker Compose'));
+      expect(formattedBody, contains('30'));
+      expect(formattedBody, contains('2'));
+      expect(formattedBody, contains('5'));
+
+      final morning = NotificationMessages.getRandomMessage(
+        NotificationCategory.morningTaskReminder,
+        topic: 'Docker Compose',
+        mins: 30,
+      );
+      expect(morning.title.isNotEmpty, isTrue);
+      expect(morning.body.isNotEmpty, isTrue);
+
+      final troll = NotificationMessages.getRandomMessage(
+        NotificationCategory.endOfDayTrolling,
+        topic: 'Redis Caching',
+        mins: 20,
+      );
+      expect(troll.title.isNotEmpty, isTrue);
+      expect(troll.body.isNotEmpty, isTrue);
+
+      final backlog = NotificationMessages.getRandomMessage(
+        NotificationCategory.backlogRoast,
+        topic: 'Kubernetes',
+        backlog: 4,
+      );
+      expect(backlog.title.isNotEmpty, isTrue);
+      expect(backlog.body.isNotEmpty, isTrue);
     });
   });
 }

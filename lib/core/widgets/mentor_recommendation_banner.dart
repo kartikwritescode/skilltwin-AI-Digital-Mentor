@@ -26,10 +26,8 @@ class MentorRecommendationBanner extends StatelessWidget {
 
     final actionLabel = customActionLabel ??
         (recommendation.type == RecommendationType.revision
-            ? 'Start 5-Min Retrieval'
-            : (recommendation.estimatedMinutes != null
-                ? 'Start ${recommendation.estimatedMinutes}m Session'
-                : 'Start Session'));
+            ? 'Start Retrieval'
+            : 'Start Personalized Session');
 
     return Center(
       child: ConstrainedBox(
@@ -94,21 +92,6 @@ class MentorRecommendationBanner extends StatelessWidget {
                         ],
                       ),
                     ),
-                    if (recommendation.estimatedMinutes != null)
-                      Row(
-                        children: [
-                          Icon(Icons.schedule, size: 14, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${recommendation.estimatedMinutes} min',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
                   ],
                 ),
                 const SizedBox(height: 14),

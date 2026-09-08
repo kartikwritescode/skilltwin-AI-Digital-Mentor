@@ -10,6 +10,8 @@ import '../../../../core/widgets/skilltwin_card.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/widgets/completion_celebration_dialog.dart';
+import '../../../../core/widgets/skilltwin_pulse_loader.dart';
+import '../../../../core/utils/mastery_format.dart';
 
 class TopicDetailScreen extends ConsumerStatefulWidget {
   final String topicId;
@@ -81,10 +83,8 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen>
             _buildQuestionsAndAskTab(topic),
           ],
         ),
-        loading: () => const Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6D00)),
-          ),
+        loading: () => const SkillTwinPulseLoader.fullScreen(
+          message: "Synthesizing deep concepts & practice...",
         ),
         error: (err, _) => ErrorStateView(
           error: err.toString(),
@@ -119,7 +119,7 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '${(topic.masteryScore * 100).toInt()}% MASTERY',
+                      '${topic.masteryScore.toMasteryPercentage}% MASTERY',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
@@ -154,8 +154,6 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen>
               Row(
                 children: [
                   _infoChip(Icons.trending_up, topic.difficulty.toUpperCase()),
-                  const SizedBox(width: 10),
-                  _infoChip(Icons.schedule, '${topic.estimatedMinutes} mins'),
                   const SizedBox(width: 10),
                   _infoChip(Icons.repeat, '${topic.revisionCount} revisions'),
                 ],
@@ -941,7 +939,7 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen>
                           fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      'Mastery Delta: ${(result.masteryDelta * 100).toStringAsFixed(1)}%',
+                      'Mastery Delta: ${result.masteryDelta.toMasteryDeltaString}',
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.bold,
@@ -1000,7 +998,7 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen>
             hasNextTopic: topicData?.nextTopicId != null,
             onContinueNext: topicData?.nextTopicId != null
                 ? () => context.pushReplacement(
-                    '/journey/topics/${topicData!.nextTopicId}')
+                    '/journey/topic/${topicData!.nextTopicId}')
                 : null,
           );
         }

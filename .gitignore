@@ -46,3 +46,23 @@ app.*.map.json
 #SkillTwin_Full_Product_Technical_Specification.md
 SkillTwin_Roadmap_UI_Wireframe.png
 backend
+
+# Security, Firebase Credentials & API Secrets (Never Push Keys)
+android/app/google-services.json
+**/google-services.json
+**/GoogleService-Info.plist
+firebase.json
+.firebaserc
+lib/firebase_options.dart
+.env
+.env.*
+*.env
+*.key
+*.keystore
+*.jks
+*.pem
+serviceAccountKey.json
+*firebase-adminsdk*.json
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*

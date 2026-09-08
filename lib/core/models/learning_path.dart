@@ -43,6 +43,7 @@ class LearningTopic {
   final int estimatedMinutes;
   final List<String> prerequisites;
   final List<String> learningObjectives;
+  final List<String> keyConcepts;
   final TopicStatus status;
   final double masteryScore;
   final double confidenceScore;
@@ -60,6 +61,7 @@ class LearningTopic {
     this.estimatedMinutes = 25,
     this.prerequisites = const [],
     this.learningObjectives = const [],
+    this.keyConcepts = const [],
     this.status = TopicStatus.notStarted,
     this.masteryScore = 0.0,
     this.confidenceScore = 0.0,
@@ -82,6 +84,10 @@ class LearningTopic {
               .toList() ??
           const [],
       learningObjectives: (json['learning_objectives'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      keyConcepts: (json['key_concepts'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const [],
@@ -108,6 +114,7 @@ class LearningTopic {
         'estimated_minutes': estimatedMinutes,
         'prerequisites': prerequisites,
         'learning_objectives': learningObjectives,
+        'key_concepts': keyConcepts,
         'status': status.toApiString(),
         'mastery_score': masteryScore,
         'confidence_score': confidenceScore,
@@ -126,6 +133,7 @@ class LearningTopic {
     int? estimatedMinutes,
     List<String>? prerequisites,
     List<String>? learningObjectives,
+    List<String>? keyConcepts,
     TopicStatus? status,
     double? masteryScore,
     double? confidenceScore,
@@ -143,6 +151,7 @@ class LearningTopic {
       estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
       prerequisites: prerequisites ?? this.prerequisites,
       learningObjectives: learningObjectives ?? this.learningObjectives,
+      keyConcepts: keyConcepts ?? this.keyConcepts,
       status: status ?? this.status,
       masteryScore: masteryScore ?? this.masteryScore,
       confidenceScore: confidenceScore ?? this.confidenceScore,

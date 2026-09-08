@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/models/session_result.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
+import '../../../../core/utils/mastery_format.dart';
 
 class SessionResultScreen extends ConsumerWidget {
   final SessionResult result;
@@ -217,7 +218,7 @@ class _StateCard extends StatelessWidget {
           Icon(icon, color: Colors.grey.shade400, size: 20),
           const SizedBox(height: 12),
           Text(
-            '${(value * 100).toInt()}%',
+            '${value.toMasteryPercentage}%',
             style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -235,7 +236,7 @@ class _StateCard extends StatelessWidget {
               ),
               const SizedBox(width: 2),
               Text(
-                '${(delta * 100).abs().toInt()}%',
+                '${(delta.abs() <= 1.0 && delta != 0 ? delta * 100 : delta).abs().round()}%',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,

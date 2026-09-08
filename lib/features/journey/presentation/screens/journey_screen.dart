@@ -8,6 +8,7 @@ import '../../../../core/widgets/skilltwin_card.dart';
 import '../../../../core/widgets/mentor_app_bar_action.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../../core/widgets/error_state_view.dart';
+import '../../../../core/utils/mastery_format.dart';
 
 class JourneyScreen extends ConsumerWidget {
   const JourneyScreen({super.key});
@@ -331,21 +332,11 @@ class _TopicTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.schedule, size: 12, color: Colors.grey.shade500),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${topic.estimatedMinutes}m',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
                       if (topic.status == TopicStatus.completed &&
                           topic.masteryScore > 0) ...[
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Text(
-                          '${(topic.masteryScore * 100).toInt()}% mastery',
+                          '${topic.masteryScore.toMasteryPercentage}% mastery',
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
