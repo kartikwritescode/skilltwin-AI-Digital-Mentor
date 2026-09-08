@@ -274,7 +274,7 @@ class _NextActionCard extends StatelessWidget {
                 if (targetTopicId != null && targetTopicId.isNotEmpty) {
                   context.push('/journey/topic/$targetTopicId');
                 } else {
-                  context.go('/journey');
+                  context.push('/onboarding');
                 }
               },
               icon: const Icon(Icons.play_arrow, size: 18),

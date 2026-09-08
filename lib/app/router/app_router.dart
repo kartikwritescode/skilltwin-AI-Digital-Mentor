@@ -47,11 +47,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (status == AuthStatus.onboardingRequired) {
-        return '/onboarding';
+        return state.uri.path == '/onboarding' ? null : '/onboarding';
       }
 
       if (status == AuthStatus.authenticated) {
-        if (isSplash || isAuth || state.uri.path == '/onboarding') {
+        if (isSplash || isAuth) {
           return '/';
         }
       }

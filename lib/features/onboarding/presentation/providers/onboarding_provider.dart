@@ -67,17 +67,20 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     state = state.copyWith(goal: goal);
   }
 
-  Future<void> submitGoal() async {
+  Future<bool> submitGoal() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _goalRepository.createGoal(state.goal);
       _ref.read(authProvider.notifier).setOnboardingComplete();
+      state = state.copyWith(isLoading: false);
+      return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
     }
   }
 
-  Future<void> startJourney(String title) async {
+  Future<bool> startJourney(String title) async {
     state = state.copyWith(
       isLoading: true,
       error: null,
@@ -86,8 +89,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     try {
       await _goalRepository.createGoal(state.goal);
       _ref.read(authProvider.notifier).setOnboardingComplete();
+      state = state.copyWith(isLoading: false);
+      return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
     }
   }
 }

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/onboarding_provider.dart';
+import '../widgets/roadmap_generating_view.dart';
+import '../../../journey/presentation/providers/learning_path_provider.dart';
+import '../../../home/presentation/providers/home_provider.dart';
 import '../../../../core/models/goal.dart';
 
 class OnboardingFlowScreen extends ConsumerStatefulWidget {
@@ -54,7 +58,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
     }
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final customTarget = _targetLevel == 'Other' ||
             _customTargetController.text.trim().isNotEmpty
         ? _customTargetController.text.trim()
@@ -72,7 +76,20 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
     );
 
     ref.read(onboardingProvider.notifier).updateGoal(goal);
-    ref.read(onboardingProvider.notifier).submitGoal();
+    final success = await ref.read(onboardingProvider.notifier).submitGoal();
+    if (success && mounted) {
+      ref.invalidate(activeLearningPathProvider);
+      ref.invalidate(homeDashboardProvider);
+      context.go('/journey');
+    } else if (!success && mounted) {
+      final error = ref.read(onboardingProvider).error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'Failed to generate roadmap. Please try again.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   @override
@@ -80,7 +97,9 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
     final state = ref.watch(onboardingProvider);
 
     if (state.isLoading) {
-      return const _LoadingOverlay();
+      return RoadmapGeneratingView(
+        goalTitle: _goalController.text.trim(),
+      );
     }
 
     final isNextEnabled = _canProceed(state.currentStep);
@@ -621,49 +640,6 @@ class _StepLayout extends StatelessWidget {
               child,
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadingOverlay extends StatelessWidget {
-  const _LoadingOverlay();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(
-              width: 56,
-              height: 56,
-              child: CircularProgressIndicator(
-                strokeWidth: 3.5,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6D00)),
-              ),
-            ),
-            const SizedBox(height: 32),
-            const Text(
-              "Generating your personalized curriculum...",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.3,
-                color: Color(0xFF212121),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Structuring sections, granular topics, and prerequisite graphs.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-            ),
-          ],
         ),
       ),
     );
