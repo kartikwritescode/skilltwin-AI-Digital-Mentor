@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/learning_path_provider.dart';
 import '../../../../core/models/topic_detail.dart';
 import '../../../../core/services/voice_service.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../../core/widgets/error_state_view.dart';
+import '../../../../core/widgets/completion_celebration_dialog.dart';
 
 class TopicDetailScreen extends ConsumerStatefulWidget {
   final String topicId;
@@ -970,23 +972,64 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen>
     HapticFeedback.lightImpact();
     final notifier = ref.read(topicActionProvider.notifier);
 
-    TopicStatusUpdateResponse? res;
-    if (action == 'start') {
-      res = await notifier.startTopic(widget.topicId);
-    } else if (action == 'complete') {
-      res = await notifier.completeTopic(widget.topicId);
-    } else if (action == 'revision') {
-      res = await notifier.markNeedsRevision(widget.topicId);
-    }
+    if (action == 'complete') {
+      final pathState = ref.read(activeLearningPathProvider).asData?.value;
+      final topicData = ref.read(topicDetailProvider(widget.topicId)).asData?.value;
 
-    if (mounted && res != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Topic marked as ${res.status.replaceAll('_', ' ')}'),
-          backgroundColor: const Color(0xFFFF6D00),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      final total = pathState?.totalTopics ?? 1;
+      // Optimistically +1 since this topic is now completed
+      final completed = (pathState?.completedTopics ?? 0) +
+          (topicData?.status == 'completed' ? 0 : 1);
+      final isAllCompleted = pathState != null && completed >= total;
+
+      // Show immediate celebration dialog
+      if (mounted) {
+        if (isAllCompleted) {
+          CourseCompletionDialog.show(
+            context,
+            courseTitle: pathState.title,
+            totalTopics: total,
+            onExploreNext: () => context.push('/onboarding'),
+          );
+        } else {
+          TopicCelebrationDialog.show(
+            context,
+            topicTitle: topicData?.title ?? 'Topic',
+            totalCompleted: completed,
+            totalTopics: total,
+            hasNextTopic: topicData?.nextTopicId != null,
+            onContinueNext: topicData?.nextTopicId != null
+                ? () => context.pushReplacement(
+                    '/journey/topics/${topicData!.nextTopicId}')
+                : null,
+          );
+        }
+      }
+
+      await notifier.completeTopic(widget.topicId);
+    } else if (action == 'start') {
+      final res = await notifier.startTopic(widget.topicId);
+      if (mounted && res != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Topic started! Dive into the concepts below.'),
+            backgroundColor: Color(0xFFFF6D00),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else if (action == 'revision') {
+      final res = await notifier.markNeedsRevision(widget.topicId);
+      if (mounted && res != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+                'Marked for spaced revision. Cognitive twin scheduled review.'),
+            backgroundColor: Colors.amber.shade800,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 

@@ -199,6 +199,24 @@ class LearningSection {
         topics.where((t) => t.status == TopicStatus.completed).length;
     return completedCount / topics.length;
   }
+
+  LearningSection copyWith({
+    String? id,
+    String? pathId,
+    String? title,
+    String? description,
+    int? orderIndex,
+    List<LearningTopic>? topics,
+  }) {
+    return LearningSection(
+      id: id ?? this.id,
+      pathId: pathId ?? this.pathId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      orderIndex: orderIndex ?? this.orderIndex,
+      topics: topics ?? this.topics,
+    );
+  }
 }
 
 class LearningPath {
@@ -280,6 +298,42 @@ class LearningPath {
         'created_at': createdAt?.toIso8601String(),
         'updated_at': updatedAt?.toIso8601String(),
       };
+
+  LearningPath copyWith({
+    String? id,
+    String? goalId,
+    String? userId,
+    String? title,
+    String? description,
+    String? targetLevel,
+    String? estimatedDuration,
+    int? version,
+    String? status,
+    String? generationStatus,
+    String? generationError,
+    double? progress,
+    List<LearningSection>? sections,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return LearningPath(
+      id: id ?? this.id,
+      goalId: goalId ?? this.goalId,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      targetLevel: targetLevel ?? this.targetLevel,
+      estimatedDuration: estimatedDuration ?? this.estimatedDuration,
+      version: version ?? this.version,
+      status: status ?? this.status,
+      generationStatus: generationStatus ?? this.generationStatus,
+      generationError: generationError ?? this.generationError,
+      progress: progress ?? this.progress,
+      sections: sections ?? this.sections,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 
   int get totalTopics =>
       sections.fold(0, (sum, sec) => sum + sec.topics.length);
