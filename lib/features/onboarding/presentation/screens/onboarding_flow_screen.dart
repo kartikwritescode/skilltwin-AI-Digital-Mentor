@@ -59,6 +59,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   }
 
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
     final customTarget = _targetLevel == 'Other' ||
             _customTargetController.text.trim().isNotEmpty
         ? _customTargetController.text.trim()
