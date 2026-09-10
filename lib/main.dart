@@ -29,7 +29,6 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-
     // FCM Permissions & Configuration
     final messaging = FirebaseMessaging.instance;
     await messaging.requestPermission(
