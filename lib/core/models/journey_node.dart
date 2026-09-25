@@ -1,6 +1,19 @@
-enum NodeStatus { completed, current, needsAttention, upcoming, locked, skipped }
+enum NodeState {
+  locked,
+  available,
+  current,
+  completed,
+  needsRevision,
+  remediating,
+  bypassed,
+  // Backwards compatibility aliases
+  upcoming,
+  needsAttention,
+  skipped,
+}
 
-typedef JourneyNodeState = NodeStatus;
+typedef NodeStatus = NodeState;
+typedef JourneyNodeState = NodeState;
 
 class JourneyNode {
   final String id;
@@ -11,12 +24,15 @@ class JourneyNode {
   final String? phase;
   final int nodeOrder;
   final int estimatedMinutes;
-  final NodeStatus status;
+  final NodeState status;
   final double progress;
   final Map<String, dynamic> metadata;
   final List<String> prerequisites;
   final String? whyItMatters;
   final String? mentorRecommendation;
+  final bool isRemediation;
+  final String? splicedAfterNodeId;
+  final bool isElaborated;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -35,51 +51,65 @@ class JourneyNode {
     this.prerequisites = const [],
     this.whyItMatters,
     this.mentorRecommendation,
+    this.isRemediation = false,
+    this.splicedAfterNodeId,
+    this.isElaborated = false,
     this.createdAt,
     this.updatedAt,
   });
 
-  NodeStatus get state => status;
+  NodeState get state => status;
 
-  static NodeStatus _parseStatus(dynamic raw) {
-    if (raw == null) return NodeStatus.upcoming;
+  static NodeState _parseStatus(dynamic raw) {
+    if (raw == null) return NodeState.available;
     final str = raw.toString().toUpperCase().replaceAll(' ', '_');
     switch (str) {
       case 'COMPLETED':
-        return NodeStatus.completed;
+        return NodeState.completed;
       case 'CURRENT':
-        return NodeStatus.current;
+        return NodeState.current;
+      case 'NEEDS_REVISION':
+      case 'NEEDSREVISION':
       case 'NEEDS_ATTENTION':
       case 'NEEDSATTENTION':
-        return NodeStatus.needsAttention;
+        return NodeState.needsRevision;
+      case 'AVAILABLE':
       case 'UPCOMING':
-        return NodeStatus.upcoming;
+        return NodeState.available;
       case 'LOCKED':
-        return NodeStatus.locked;
+        return NodeState.locked;
+      case 'REMEDIATING':
+        return NodeState.remediating;
+      case 'BYPASSED':
       case 'SKIPPED':
-        return NodeStatus.skipped;
+        return NodeState.bypassed;
       default:
-        return NodeStatus.values.firstWhere(
+        return NodeState.values.firstWhere(
           (e) => e.name.toLowerCase() == raw.toString().toLowerCase(),
-          orElse: () => NodeStatus.upcoming,
+          orElse: () => NodeState.available,
         );
     }
   }
 
-  static String _statusToString(NodeStatus s) {
+  static String _statusToString(NodeState s) {
     switch (s) {
-      case NodeStatus.completed:
+      case NodeState.completed:
         return 'COMPLETED';
-      case NodeStatus.current:
+      case NodeState.current:
         return 'CURRENT';
-      case NodeStatus.needsAttention:
-        return 'NEEDS_ATTENTION';
-      case NodeStatus.upcoming:
-        return 'UPCOMING';
-      case NodeStatus.locked:
+      case NodeState.needsRevision:
+      case NodeState.needsAttention:
+        return 'NEEDS_REVISION';
+      case NodeState.available:
+      case NodeState.upcoming:
+        return 'AVAILABLE';
+      case NodeState.locked:
         return 'LOCKED';
-      case NodeStatus.skipped:
-        return 'SKIPPED';
+      case NodeState.remediating:
+        return 'REMEDIATING';
+      case NodeState.bypassed:
+      case NodeState.skipped:
+        return 'BYPASSED';
     }
   }
 
@@ -94,22 +124,41 @@ class JourneyNode {
             ? List<String>.from(meta['prerequisites'])
             : <String>[]);
 
+    final bool isRem = json['is_remediation'] == true ||
+        meta['is_remediation'] == true ||
+        (json['state']?.toString().toUpperCase() == 'REMEDIATING');
+
+    final String? splicedAfter = json['spliced_after_node_id']?.toString() ??
+        meta['spliced_after_node_id']?.toString();
+
+    final bool isElab = json['is_elaborated'] == true ||
+        meta['is_elaborated'] == true ||
+        json['content'] != null ||
+        meta['content'] != null;
+
     return JourneyNode(
       id: json['id']?.toString() ?? '',
-      journeyId: json['journey_id']?.toString() ?? '',
+      journeyId: json['journey_id']?.toString() ?? json['path_id']?.toString() ?? '',
       conceptId: json['concept_id']?.toString(),
       title: json['title'] ?? '',
       subtitle: json['subtitle'],
       phase: json['phase'],
-      nodeOrder: (json['node_order'] as num?)?.toInt() ?? 0,
-      estimatedMinutes: (json['estimated_minutes'] as num?)?.toInt() ?? 0,
+      nodeOrder: (json['order_index'] as num?)?.toInt() ??
+          (json['node_order'] as num?)?.toInt() ??
+          0,
+      estimatedMinutes: (json['estimated_minutes'] as num?)?.toInt() ??
+          (meta['estimated_minutes'] as num?)?.toInt() ??
+          0,
       status: _parseStatus(json['state'] ?? json['status']),
-      progress: ((json['progress'] ?? 0.0) as num).toDouble(),
+      progress: ((json['progress'] ?? json['mastery_score'] ?? 0.0) as num).toDouble(),
       metadata: meta,
       prerequisites: prereqs,
       whyItMatters: json['why_it_matters'] ?? meta['why_it_matters'],
       mentorRecommendation:
           json['mentor_recommendation'] ?? meta['mentor_recommendation'],
+      isRemediation: isRem,
+      splicedAfterNodeId: splicedAfter,
+      isElaborated: isElab,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
@@ -131,8 +180,15 @@ class JourneyNode {
         'state': _statusToString(status),
         'status': status.name,
         'progress': progress,
+        'is_remediation': isRemediation,
+        if (splicedAfterNodeId != null) 'spliced_after_node_id': splicedAfterNodeId,
+        'is_elaborated': isElaborated,
         'metadata': {
           ...metadata,
+          'is_remediation': isRemediation,
+          if (splicedAfterNodeId != null)
+            'spliced_after_node_id': splicedAfterNodeId,
+          'is_elaborated': isElaborated,
           if (whyItMatters != null) 'why_it_matters': whyItMatters,
           if (mentorRecommendation != null)
             'mentor_recommendation': mentorRecommendation,
@@ -146,3 +202,4 @@ class JourneyNode {
       };
 }
 
+typedef PathNode = JourneyNode;

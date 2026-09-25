@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import '../../../../core/models/journey_node.dart';
 
 class WindingPathPainter extends CustomPainter {
   final List<Offset> nodePositions;
+  final List<JourneyNode>? nodes;
   final Color pathColor;
   final double animationValue;
 
   WindingPathPainter({
     required this.nodePositions,
+    this.nodes,
     this.animationValue = 1.0,
     this.pathColor = Colors.orange,
   });
@@ -15,45 +18,90 @@ class WindingPathPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (nodePositions.length < 2) return;
 
-    final paint = Paint()
+    final standardPaint = Paint()
       ..color = pathColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4.0
       ..strokeCap = StrokeCap.round;
 
-    final path = Path();
-    path.moveTo(nodePositions[0].dx, nodePositions[0].dy);
+    final detourPaint = Paint()
+      ..color = const Color(0xFFFFB300) // Amber detour
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
+
+    final bypassedPaint = Paint()
+      ..color = const Color(0xFF4CAF50).withOpacity(0.5) // Light green fast-track
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
 
     for (int i = 0; i < nodePositions.length - 1; i++) {
       final p0 = nodePositions[i];
       final p1 = nodePositions[i + 1];
 
-      final controlPoint1 = Offset(p0.dx, p0.dy + (p1.dy - p0.dy) / 2);
-      final controlPoint2 = Offset(p1.dx, p0.dy + (p1.dy - p0.dy) / 2);
+      final bool isCurrentDetour = nodes != null &&
+          i + 1 < nodes!.length &&
+          (nodes![i].isRemediation || nodes![i + 1].isRemediation);
 
-      path.cubicTo(
-        controlPoint1.dx, controlPoint1.dy,
-        controlPoint2.dx, controlPoint2.dy,
-        p1.dx, p1.dy,
-      );
+      final bool isCurrentBypassed = nodes != null &&
+          i + 1 < nodes!.length &&
+          (nodes![i].state == NodeState.bypassed || nodes![i + 1].state == NodeState.bypassed);
+
+      final segmentPath = Path();
+      segmentPath.moveTo(p0.dx, p0.dy);
+
+      if (isCurrentDetour) {
+        // Curved detour arch connector bulging out to indicate dynamic remediation detour
+        final double midY = (p0.dy + p1.dy) / 2;
+        final double detourOffset = (p1.dx >= p0.dx) ? 40.0 : -40.0;
+
+        final controlPoint1 = Offset(p0.dx + detourOffset, midY);
+        final controlPoint2 = Offset(p1.dx + detourOffset, midY);
+
+        segmentPath.cubicTo(
+          controlPoint1.dx, controlPoint1.dy,
+          controlPoint2.dx, controlPoint2.dy,
+          p1.dx, p1.dy,
+        );
+      } else {
+        // Standard smooth cubic S-curve
+        final controlPoint1 = Offset(p0.dx, p0.dy + (p1.dy - p0.dy) / 2);
+        final controlPoint2 = Offset(p1.dx, p0.dy + (p1.dy - p0.dy) / 2);
+
+        segmentPath.cubicTo(
+          controlPoint1.dx, controlPoint1.dy,
+          controlPoint2.dx, controlPoint2.dy,
+          p1.dx, p1.dy,
+        );
+      }
+
+      // Compute animation slice
+      final pathMetrics = segmentPath.computeMetrics();
+      final extractPath = Path();
+      for (var metric in pathMetrics) {
+        extractPath.addPath(
+          metric.extractPath(0.0, metric.length * animationValue),
+          Offset.zero,
+        );
+      }
+
+      // Pick proper paint style
+      Paint activePaint = standardPaint;
+      if (isCurrentDetour) {
+        activePaint = detourPaint;
+      } else if (isCurrentBypassed) {
+        activePaint = bypassedPaint;
+      }
+
+      canvas.drawPath(extractPath, activePaint);
     }
-
-    // Animate path drawing
-    final pathMetrics = path.computeMetrics();
-    final extractPath = Path();
-    for (var metric in pathMetrics) {
-      extractPath.addPath(
-        metric.extractPath(0.0, metric.length * animationValue),
-        Offset.zero,
-      );
-    }
-
-    canvas.drawPath(extractPath, paint);
   }
 
   @override
   bool shouldRepaint(covariant WindingPathPainter oldDelegate) {
-    return oldDelegate.animationValue != animationValue || 
-           oldDelegate.nodePositions != nodePositions;
+    return oldDelegate.animationValue != animationValue ||
+        oldDelegate.nodePositions != nodePositions ||
+        oldDelegate.nodes != nodes;
   }
 }
