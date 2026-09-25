@@ -211,7 +211,7 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen>
                               const Icon(Icons.playlist_play, color: Colors.white, size: 14),
                               const SizedBox(width: 4),
                               Text(
-                                'Video #${topic.position + 1}',
+                                'Video #${(topic.position ?? 0) + 1}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,

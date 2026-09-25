@@ -501,7 +501,7 @@ class _TopicTile extends StatelessWidget {
                                   size: 10, color: Color(0xFFFF0000)),
                               const SizedBox(width: 3),
                               Text(
-                                'Video #${topic.position + 1}',
+                                'Video #${(topic.position ?? 0) + 1}',
                                 style: const TextStyle(
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.bold,
