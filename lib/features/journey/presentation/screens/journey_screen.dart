@@ -210,6 +210,8 @@ class _RoadmapHeader extends StatelessWidget {
                     ),
                     Text(
                       path.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -219,6 +221,7 @@ class _RoadmapHeader extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 '$progressPct%',
                 style: TextStyle(
@@ -230,17 +233,24 @@ class _RoadmapHeader extends StatelessWidget {
             ],
           ),
           if (isYouTube && path.channelName != null) ...[
-            const SizedBox(height: 6),
-            Row(
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const Icon(Icons.person, size: 13, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  'Created by ${path.channelName}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.person, size: 13, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Created by ${path.channelName}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                    ),
+                  ],
                 ),
-                if (path.isStrictMode) ...[
-                  const SizedBox(width: 10),
+                if (path.isStrictMode)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
@@ -253,7 +263,6 @@ class _RoadmapHeader extends StatelessWidget {
                       style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade800, fontWeight: FontWeight.bold),
                     ),
                   ),
-                ],
               ],
             ),
           ],
@@ -275,15 +284,20 @@ class _RoadmapHeader extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${path.completedTopics} of ${path.totalTopics} ${isYouTube ? 'videos' : 'topics'} completed',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              Expanded(
+                child: Text(
+                  '${path.completedTopics} of ${path.totalTopics} ${isYouTube ? 'videos' : 'topics'} completed',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              if (path.estimatedDuration != null)
+              if (path.estimatedDuration != null) ...[
+                const SizedBox(width: 8),
                 Text(
                   path.estimatedDuration!,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
+              ],
             ],
           ),
           if (nextTopic != null) ...[
@@ -467,7 +481,10 @@ class _TopicTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -486,7 +503,6 @@ class _TopicTile extends StatelessWidget {
                         ),
                       ),
                       if (topic.isYouTubeVideo) ...[
-                        const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
@@ -511,8 +527,7 @@ class _TopicTile extends StatelessWidget {
                             ],
                           ),
                         ),
-                        if (topic.durationSeconds > 0) ...[
-                          const SizedBox(width: 6),
+                        if (topic.durationSeconds > 0)
                           Text(
                             _formatDuration(topic.durationSeconds),
                             style: TextStyle(
@@ -521,11 +536,9 @@ class _TopicTile extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ],
                       ],
                       if (topic.status == TopicStatus.completed &&
-                          topic.masteryScore > 0) ...[
-                        const SizedBox(width: 8),
+                          topic.masteryScore > 0)
                         Text(
                           '${topic.masteryScore.toMasteryPercentage}% mastery',
                           style: const TextStyle(
@@ -534,7 +547,6 @@ class _TopicTile extends StatelessWidget {
                             color: Colors.green,
                           ),
                         ),
-                      ],
                     ],
                   ),
                 ],

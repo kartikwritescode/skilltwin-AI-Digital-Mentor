@@ -152,10 +152,12 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen>
                 ),
               ],
               const SizedBox(height: 16),
-              Row(
+              Wrap(
+                spacing: 12,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   _infoChip(Icons.trending_up, topic.difficulty.toUpperCase()),
-                  const SizedBox(width: 10),
                   _infoChip(Icons.repeat, '${topic.revisionCount} revisions'),
                 ],
               ),
