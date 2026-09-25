@@ -50,6 +50,7 @@ class LearningTopic {
   final int revisionCount;
   final DateTime? completedAt;
   final DateTime? nextRevisionAt;
+  final Map<String, dynamic> metadata;
 
   const LearningTopic({
     required this.id,
@@ -68,7 +69,17 @@ class LearningTopic {
     this.revisionCount = 0,
     this.completedAt,
     this.nextRevisionAt,
+    this.metadata = const {},
   });
+
+  bool get isYouTubeVideo => metadata['youtube_video_id'] != null;
+  String? get youtubeVideoId => metadata['youtube_video_id'] as String?;
+  String? get youtubeUrl => metadata['youtube_url'] as String?;
+  int get durationSeconds => (metadata['duration_seconds'] as num?)?.toInt() ?? 0;
+  String? get thumbnailUrl => metadata['thumbnail_url'] as String?;
+  int? get position => (metadata['position'] as num?)?.toInt();
+  String? get channelName => metadata['channel_name'] as String?;
+  String? get videoEntityId => metadata['video_entity_id'] as String?;
 
   factory LearningTopic.fromJson(Map<String, dynamic> json) {
     return LearningTopic(
@@ -101,6 +112,9 @@ class LearningTopic {
       nextRevisionAt: json['next_revision_at'] != null
           ? DateTime.tryParse(json['next_revision_at'].toString())
           : null,
+      metadata: json['metadata'] is Map
+          ? Map<String, dynamic>.from(json['metadata'] as Map)
+          : const {},
     );
   }
 
@@ -121,6 +135,7 @@ class LearningTopic {
         'revision_count': revisionCount,
         'completed_at': completedAt?.toIso8601String(),
         'next_revision_at': nextRevisionAt?.toIso8601String(),
+        'metadata': metadata,
       };
 
   LearningTopic copyWith({
@@ -140,6 +155,7 @@ class LearningTopic {
     int? revisionCount,
     DateTime? completedAt,
     DateTime? nextRevisionAt,
+    Map<String, dynamic>? metadata,
   }) {
     return LearningTopic(
       id: id ?? this.id,
@@ -158,6 +174,7 @@ class LearningTopic {
       revisionCount: revisionCount ?? this.revisionCount,
       completedAt: completedAt ?? this.completedAt,
       nextRevisionAt: nextRevisionAt ?? this.nextRevisionAt,
+      metadata: metadata ?? this.metadata,
     );
   }
 }
@@ -242,6 +259,7 @@ class LearningPath {
   final String? generationError;
   final double progress;
   final List<LearningSection> sections;
+  final Map<String, dynamic> metadata;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -259,9 +277,17 @@ class LearningPath {
     this.generationError,
     this.progress = 0.0,
     this.sections = const [],
+    this.metadata = const {},
     this.createdAt,
     this.updatedAt,
   });
+
+  bool get isYouTubeCurriculum => metadata['source_type'] == 'youtube_playlist';
+  String? get youtubePlaylistId => metadata['youtube_playlist_id'] as String?;
+  bool get isStrictMode =>
+      metadata['strict_mode'] == true || metadata['strict_sequence'] == true;
+  int get totalVideos => (metadata['total_videos'] as num?)?.toInt() ?? 0;
+  String? get channelName => metadata['channel_name'] as String?;
 
   factory LearningPath.fromJson(Map<String, dynamic> json) {
     final rawSections = json['sections'] as List<dynamic>? ?? [];
@@ -281,6 +307,9 @@ class LearningPath {
       sections: rawSections
           .map((s) => LearningSection.fromJson(s as Map<String, dynamic>))
           .toList(),
+      metadata: json['metadata'] is Map
+          ? Map<String, dynamic>.from(json['metadata'] as Map)
+          : const {},
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
@@ -304,6 +333,7 @@ class LearningPath {
         'generation_error': generationError,
         'progress': progress,
         'sections': sections.map((s) => s.toJson()).toList(),
+        'metadata': metadata,
         'created_at': createdAt?.toIso8601String(),
         'updated_at': updatedAt?.toIso8601String(),
       };
@@ -322,6 +352,7 @@ class LearningPath {
     String? generationError,
     double? progress,
     List<LearningSection>? sections,
+    Map<String, dynamic>? metadata,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -339,6 +370,7 @@ class LearningPath {
       generationError: generationError ?? this.generationError,
       progress: progress ?? this.progress,
       sections: sections ?? this.sections,
+      metadata: metadata ?? this.metadata,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -9,6 +9,7 @@ import '../../../../core/widgets/mentor_app_bar_action.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/utils/mastery_format.dart';
+import '../widgets/youtube_import_modal.dart';
 
 class JourneyScreen extends ConsumerWidget {
   const JourneyScreen({super.key});
@@ -23,8 +24,13 @@ class JourneyScreen extends ConsumerWidget {
         title: const Text('Learning Journey'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: const [
-          MentorAppBarAction(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.playlist_add, color: Color(0xFFFF0000)),
+            tooltip: 'Import YouTube Playlist',
+            onPressed: () => YouTubeImportModal.show(context),
+          ),
+          const MentorAppBarAction(),
         ],
       ),
       body: RefreshIndicator(
@@ -75,27 +81,50 @@ class JourneyScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Set a target outcome to have your AI mentor generate a deep, personalized learning curriculum.',
+          'Set a target outcome to have your AI mentor generate a curriculum, or import any YouTube playlist to learn sequentially.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.4),
         ),
         const SizedBox(height: 32),
         Center(
-          child: ElevatedButton.icon(
-            onPressed: () => context.push('/onboarding'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF6D00),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => context.push('/onboarding'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6D00),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text(
+                  'Set Learning Goal',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
-            ),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text(
-              'Set Learning Goal',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+              OutlinedButton.icon(
+                onPressed: () => YouTubeImportModal.show(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFFF0000),
+                  side: const BorderSide(color: Color(0xFFFF0000)),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.play_circle_fill, size: 18),
+                label: const Text(
+                  'Import YouTube Playlist',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -129,6 +158,18 @@ class _RoadmapHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progressPct = (path.progress * 100).toInt();
+    final isYouTube = path.isYouTubeCurriculum;
+
+    LearningTopic? nextTopic;
+    for (final section in path.sections) {
+      for (final topic in section.topics) {
+        if (topic.status != TopicStatus.completed) {
+          nextTopic = topic;
+          break;
+        }
+      }
+      if (nextTopic != null) break;
+    }
 
     return SkillTwinCard(
       padding: const EdgeInsets.all(20),
@@ -140,10 +181,16 @@ class _RoadmapHeader extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF6D00).withValues(alpha: 0.1),
+                  color: isYouTube
+                      ? const Color(0xFFFF0000).withValues(alpha: 0.1)
+                      : const Color(0xFFFF6D00).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.explore, color: Color(0xFFFF6D00), size: 20),
+                child: Icon(
+                  isYouTube ? Icons.play_circle_fill : Icons.explore,
+                  color: isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -151,9 +198,11 @@ class _RoadmapHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'ACTIVE ROADMAP (${path.targetLevel.toUpperCase()})',
-                      style: const TextStyle(
-                        color: Color(0xFFFF6D00),
+                      isYouTube
+                          ? 'YOUTUBE PLAYLIST CURRICULUM'
+                          : 'ACTIVE ROADMAP (${path.targetLevel.toUpperCase()})',
+                      style: TextStyle(
+                        color: isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                         letterSpacing: 1.1,
@@ -172,22 +221,54 @@ class _RoadmapHeader extends StatelessWidget {
               ),
               Text(
                 '$progressPct%',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
-                  color: Color(0xFFFF6D00),
+                  color: isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
                 ),
               ),
             ],
           ),
+          if (isYouTube && path.channelName != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.person, size: 13, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text(
+                  'Created by ${path.channelName}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                ),
+                if (path.isStrictMode) ...[
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blueGrey.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.blueGrey.shade200),
+                    ),
+                    child: Text(
+                      '🔒 Strict Sequence',
+                      style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade800, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: path.progress.clamp(0.0, 1.0),
               minHeight: 7,
-              backgroundColor: const Color(0xFFFF6D00).withValues(alpha: 0.12),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF6D00)),
+              backgroundColor: isYouTube
+                  ? const Color(0xFFFF0000).withValues(alpha: 0.12)
+                  : const Color(0xFFFF6D00).withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -195,7 +276,7 @@ class _RoadmapHeader extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${path.completedTopics} of ${path.totalTopics} topics completed',
+                '${path.completedTopics} of ${path.totalTopics} ${isYouTube ? 'videos' : 'topics'} completed',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               if (path.estimatedDuration != null)
@@ -205,6 +286,67 @@ class _RoadmapHeader extends StatelessWidget {
                 ),
             ],
           ),
+          if (nextTopic != null) ...[
+            const SizedBox(height: 16),
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.push('/journey/topic/${nextTopic!.id}');
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isYouTube
+                      ? const Color(0xFFFF0000).withValues(alpha: 0.06)
+                      : const Color(0xFFFF6D00).withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isYouTube
+                        ? const Color(0xFFFF0000).withValues(alpha: 0.25)
+                        : const Color(0xFFFF6D00).withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.play_arrow_rounded,
+                      color: isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'CONTINUE LEARNING',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
+                              color: isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
+                            ),
+                          ),
+                          Text(
+                            nextTopic.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -290,6 +432,17 @@ class _TopicTile extends StatelessWidget {
     required this.onTap,
   });
 
+  String _formatDuration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    if (m >= 60) {
+      final h = m ~/ 60;
+      final remM = m % 60;
+      return '${h}h ${remM}m';
+    }
+    return '${m}m ${s.toString().padLeft(2, '0')}s';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -332,6 +485,44 @@ class _TopicTile extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (topic.isYouTubeVideo) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF0000).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.play_circle_fill,
+                                  size: 10, color: Color(0xFFFF0000)),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Video #${topic.position + 1}',
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFFF0000),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (topic.durationSeconds > 0) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatDuration(topic.durationSeconds),
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
                       if (topic.status == TopicStatus.completed &&
                           topic.masteryScore > 0) ...[
                         const SizedBox(width: 8),

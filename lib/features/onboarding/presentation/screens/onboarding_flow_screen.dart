@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/roadmap_generating_view.dart';
 import '../../../journey/presentation/providers/learning_path_provider.dart';
+import '../../../journey/presentation/providers/youtube_provider.dart';
 import '../../../home/presentation/providers/home_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/models/goal.dart';
 
 class OnboardingFlowScreen extends ConsumerStatefulWidget {
@@ -21,6 +23,10 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   final TextEditingController _customTargetController =
       TextEditingController();
   final TextEditingController _knowledgeController = TextEditingController();
+  final TextEditingController _youtubeUrlController = TextEditingController();
+
+  bool _isYouTubeMode = false;
+  bool _isSubmittingYouTube = false;
 
   String _targetLevel = 'Intermediate';
   DateTime _deadline = DateTime.now().add(const Duration(days: 90));
@@ -42,7 +48,17 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
     _goalController.dispose();
     _customTargetController.dispose();
     _knowledgeController.dispose();
+    _youtubeUrlController.dispose();
     super.dispose();
+  }
+
+  bool _isValidPlaylistUrl(String url) {
+    final clean = url.trim();
+    if (clean.isEmpty) return false;
+    if (RegExp(r'^(PL|UU|FL|RD|OLAK5uy_)[a-zA-Z0-9_-]{10,}$').hasMatch(clean)) {
+      return true;
+    }
+    return clean.contains('list=') && (clean.contains('youtube.com') || clean.contains('youtu.be'));
   }
 
   void _next() {
@@ -60,6 +76,39 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
+
+    if (_isYouTubeMode) {
+      setState(() => _isSubmittingYouTube = true);
+      try {
+        await ref.read(youtubeRepositoryProvider).importPlaylist(
+          url: _youtubeUrlController.text.trim(),
+          dailyMinutes: _dailyMinutes,
+          targetLevel: _targetLevel,
+          deadline: _deadline,
+          currentKnowledge: _knowledgeTags,
+          pace: 'normal',
+          strictMode: true,
+        );
+        ref.read(authProvider.notifier).setOnboardingComplete();
+        ref.invalidate(activeLearningPathProvider);
+        ref.invalidate(homeDashboardProvider);
+        if (mounted) {
+          context.go('/journey');
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isSubmittingYouTube = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceAll("Exception: ", "")),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+        }
+      }
+      return;
+    }
+
     final customTarget = _targetLevel == 'Other' ||
             _customTargetController.text.trim().isNotEmpty
         ? _customTargetController.text.trim()
@@ -97,9 +146,11 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingProvider);
 
-    if (state.isLoading) {
+    if (state.isLoading || _isSubmittingYouTube) {
       return RoadmapGeneratingView(
-        goalTitle: _goalController.text.trim(),
+        goalTitle: _isYouTubeMode
+            ? "YouTube Playlist Curriculum"
+            : _goalController.text.trim(),
       );
     }
 
@@ -167,6 +218,9 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   bool _canProceed(int step) {
     switch (step) {
       case 0:
+        if (_isYouTubeMode) {
+          return _isValidPlaylistUrl(_youtubeUrlController.text);
+        }
         return _goalController.text.trim().isNotEmpty;
       case 1:
         if (_targetLevel == 'Other') {
@@ -179,86 +233,332 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   }
 
   Widget _buildStep1() {
+    final isUrlValid = _isValidPlaylistUrl(_youtubeUrlController.text);
+    final hasUrlText = _youtubeUrlController.text.trim().isNotEmpty;
+
     return _StepLayout(
-      title: "What do you want to learn?",
-      subtitle:
-          "Type any topic, framework, field, or career goal. SkillTwin creates a fully personalized learning path.",
+      title: _isYouTubeMode ? "Learn from YouTube" : "What do you want to learn?",
+      subtitle: _isYouTubeMode
+          ? "Paste any YouTube playlist. SkillTwin maps the creator's authoritative curriculum to your schedule."
+          : "Type any topic, framework, field, or career goal. SkillTwin creates a fully personalized learning path.",
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: _goalController,
-            maxLines: 3,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-            style: const TextStyle(fontSize: 17, height: 1.4),
-            decoration: InputDecoration(
-              hintText:
-                  "e.g. Master Backend Engineering with Python & FastAPI, or Quantum Computing Fundamentals",
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.grey.shade200),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.grey.shade200),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: Color(0xFFFF6D00), width: 2),
-              ),
-              contentPadding: const EdgeInsets.all(20),
+          // Mode Toggle
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () {
+                      setState(() {
+                        _isYouTubeMode = false;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: !_isYouTubeMode ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: !_isYouTubeMode
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                )
+                              ]
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          "🎯 Goal / Career",
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: !_isYouTubeMode
+                                ? FontWeight.bold
+                                : FontWeight.w500,
+                            color: !_isYouTubeMode
+                                ? const Color(0xFF1E293B)
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () {
+                      setState(() {
+                        _isYouTubeMode = true;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _isYouTubeMode ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: _isYouTubeMode
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                )
+                              ]
+                            : null,
+                      ),
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.play_circle_fill,
+                              color: Color(0xFFFF0000),
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              "YouTube Playlist",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: _isYouTubeMode
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                                color: _isYouTubeMode
+                                    ? const Color(0xFFFF0000)
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            "QUICK INSPIRATION",
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
-              color: Colors.grey,
+          const SizedBox(height: 20),
+
+          if (!_isYouTubeMode) ...[
+            TextField(
+              controller: _goalController,
+              maxLines: 3,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(fontSize: 17, height: 1.4),
+              decoration: InputDecoration(
+                hintText:
+                    "e.g. Master Backend Engineering with Python & FastAPI, or Quantum Computing Fundamentals",
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: Colors.grey.shade200),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: Colors.grey.shade200),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: Color(0xFFFF6D00), width: 2),
+                ),
+                contentPadding: const EdgeInsets.all(20),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              'Full-Stack Web Development',
-              'Cloud Architecture & DevOps',
-              'System Design & Microservices',
-              'Machine Learning & Deep Learning',
-              'Data Structures & Algorithms',
-              'Generative AI Applications',
-            ].map((e) => ActionChip(
-                  label: Text(e),
-                  backgroundColor: _goalController.text == e
-                      ? const Color(0xFFFF6D00).withValues(alpha: 0.12)
+            const SizedBox(height: 24),
+            const Text(
+              "QUICK INSPIRATION",
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                'Full-Stack Web Development',
+                'Cloud Architecture & DevOps',
+                'System Design & Microservices',
+                'Machine Learning & Deep Learning',
+                'Data Structures & Algorithms',
+                'Generative AI Applications',
+              ].map((e) => ActionChip(
+                    label: Text(e),
+                    backgroundColor: _goalController.text == e
+                        ? const Color(0xFFFF6D00).withValues(alpha: 0.12)
+                        : Colors.white,
+                    side: BorderSide(
+                      color: _goalController.text == e
+                          ? const Color(0xFFFF6D00)
+                          : Colors.grey.shade300,
+                    ),
+                    labelStyle: TextStyle(
+                      color: _goalController.text == e
+                          ? const Color(0xFFFF6D00)
+                          : Colors.black87,
+                      fontWeight: _goalController.text == e
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      fontSize: 12.5,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _goalController.text = e;
+                      });
+                    },
+                  )).toList(),
+            ),
+          ] else ...[
+            TextField(
+              controller: _youtubeUrlController,
+              maxLines: 2,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(fontSize: 15, height: 1.4),
+              decoration: InputDecoration(
+                hintText: "https://www.youtube.com/playlist?list=PL...",
+                filled: true,
+                fillColor: Colors.white,
+                prefixIcon: const Icon(Icons.link, color: Color(0xFFFF0000)),
+                suffixIcon: hasUrlText
+                    ? Icon(
+                        isUrlValid ? Icons.check_circle : Icons.error,
+                        color: isUrlValid ? Colors.green : Colors.red,
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: hasUrlText
+                        ? (isUrlValid ? Colors.green.shade300 : Colors.red.shade300)
+                        : Colors.grey.shade200,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: hasUrlText
+                        ? (isUrlValid ? Colors.green.shade300 : Colors.red.shade300)
+                        : Colors.grey.shade200,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: hasUrlText && !isUrlValid
+                        ? Colors.red
+                        : const Color(0xFFFF0000),
+                    width: 2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.all(18),
+              ),
+            ),
+            if (hasUrlText && !isUrlValid)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0, left: 4),
+                child: Text(
+                  "Please enter a valid YouTube playlist URL containing 'list=PL...'",
+                  style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                ),
+              ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.verified, color: Color(0xFF0284C7), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Authoritative Creator Sequence: Video order is 100% strictly preserved. Gemini derives topics and schedules.",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blueGrey.shade800,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "POPULAR CURRICULA",
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                {
+                  'title': 'NeetCode 150 DSA',
+                  'url':
+                      'https://www.youtube.com/playlist?list=PLot-Xpze53ldVwtstag2TL4HQhAnC8ATf',
+                },
+                {
+                  'title': 'CS50 Computer Science',
+                  'url':
+                      'https://www.youtube.com/playlist?list=PLhQjrBD2T382_R172L3Up5L04nmLO4vOR',
+                },
+                {
+                  'title': 'FastAPI Mastery',
+                  'url':
+                      'https://www.youtube.com/playlist?list=PL-osiE80TeTs4U992KVXkP-L1q4s5x63A',
+                },
+              ].map((item) {
+                final isSelected = _youtubeUrlController.text == item['url'];
+                return ActionChip(
+                  avatar: const Icon(Icons.playlist_play, size: 16, color: Color(0xFFFF0000)),
+                  label: Text(item['title']!),
+                  backgroundColor: isSelected
+                      ? const Color(0xFFFF0000).withValues(alpha: 0.12)
                       : Colors.white,
                   side: BorderSide(
-                    color: _goalController.text == e
-                        ? const Color(0xFFFF6D00)
+                    color: isSelected
+                        ? const Color(0xFFFF0000)
                         : Colors.grey.shade300,
                   ),
                   labelStyle: TextStyle(
-                    color: _goalController.text == e
-                        ? const Color(0xFFFF6D00)
-                        : Colors.black87,
-                    fontWeight: _goalController.text == e
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                    fontSize: 12.5,
+                    color: isSelected ? const Color(0xFFFF0000) : Colors.black87,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 12,
                   ),
                   onPressed: () {
                     setState(() {
-                      _goalController.text = e;
+                      _youtubeUrlController.text = item['url']!;
                     });
                   },
-                )).toList(),
-          ),
+                );
+              }).toList(),
+            ),
+          ],
         ],
       ),
     );

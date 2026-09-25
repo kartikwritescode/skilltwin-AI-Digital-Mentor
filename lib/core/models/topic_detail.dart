@@ -51,7 +51,19 @@ class TopicDetailData {
     this.nextTopicId,
     this.hasCachedExplanation = false,
     this.questionCount = 0,
+    this.metadata = const {},
   });
+
+  bool get isYouTubeVideo => metadata['youtube_video_id'] != null;
+  String? get youtubeVideoId => metadata['youtube_video_id'] as String?;
+  String? get youtubeUrl => metadata['youtube_url'] as String?;
+  int get durationSeconds => (metadata['duration_seconds'] as num?)?.toInt() ?? 0;
+  String? get thumbnailUrl => metadata['thumbnail_url'] as String?;
+  int? get position => (metadata['position'] as num?)?.toInt();
+  String? get channelName => metadata['channel_name'] as String?;
+  String? get videoEntityId => metadata['video_entity_id'] as String?;
+
+  final Map<String, dynamic> metadata;
 
   factory TopicDetailData.fromJson(Map<String, dynamic> json) {
     return TopicDetailData(
@@ -95,6 +107,9 @@ class TopicDetailData {
       nextTopicId: json['next_topic_id']?.toString(),
       hasCachedExplanation: json['has_cached_explanation'] == true,
       questionCount: (json['question_count'] as num?)?.toInt() ?? 0,
+      metadata: json['metadata'] is Map
+          ? Map<String, dynamic>.from(json['metadata'] as Map)
+          : const {},
     );
   }
 

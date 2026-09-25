@@ -12,6 +12,7 @@ import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/widgets/completion_celebration_dialog.dart';
 import '../../../../core/widgets/skilltwin_pulse_loader.dart';
 import '../../../../core/utils/mastery_format.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TopicDetailScreen extends ConsumerStatefulWidget {
   final String topicId;
@@ -162,6 +163,166 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen>
           ),
         ),
         const SizedBox(height: 16),
+
+        if (topic.isYouTubeVideo) ...[
+          SkillTwinCard(
+            padding: EdgeInsets.zero,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    children: [
+                      if (topic.thumbnailUrl != null && topic.thumbnailUrl!.isNotEmpty)
+                        AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: Image.network(
+                            topic.thumbnailUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFF0F172A),
+                              child: const Center(
+                                child: Icon(Icons.play_circle_outline, size: 60, color: Colors.white54),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          height: 180,
+                          color: const Color(0xFF0F172A),
+                          child: const Center(
+                            child: Icon(Icons.play_circle_outline, size: 60, color: Colors.white54),
+                          ),
+                        ),
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.playlist_play, color: Colors.white, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Video #${topic.position + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (topic.durationSeconds > 0)
+                        Positioned(
+                          bottom: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              _formatVideoDuration(topic.durationSeconds),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.smart_display, color: Color(0xFFFF0000), size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                topic.channelName != null
+                                    ? 'Creator: ${topic.channelName}'
+                                    : 'Original YouTube Curriculum Video',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final ytUrl = topic.youtubeUrl ??
+                                  (topic.youtubeVideoId != null
+                                      ? 'https://www.youtube.com/watch?v=${topic.youtubeVideoId}'
+                                      : null);
+                              if (ytUrl != null) {
+                                final uri = Uri.parse(ytUrl);
+                                try {
+                                  if (await canLaunchUrl(uri)) {
+                                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                  } else {
+                                    await Clipboard.setData(ClipboardData(text: ytUrl));
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Video URL copied to clipboard')),
+                                      );
+                                    }
+                                  }
+                                } catch (_) {
+                                  await Clipboard.setData(ClipboardData(text: ytUrl));
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Video URL copied to clipboard')),
+                                    );
+                                  }
+                                }
+                              }
+                            },
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text(
+                              'Watch on YouTube',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF0000),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
 
         // Action Buttons: Start, Complete, Needs Revision
         SkillTwinCard(
@@ -1151,5 +1312,16 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen>
         ),
       ],
     );
+  }
+
+  String _formatVideoDuration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    if (m >= 60) {
+      final h = m ~/ 60;
+      final remM = m % 60;
+      return '${h}h ${remM}m';
+    }
+    return '${m}m ${s.toString().padLeft(2, '0')}s';
   }
 }
