@@ -77,7 +77,9 @@ class RoadmapNodeWidget extends StatelessWidget {
     if (!isDashedGreen) {
       if (isRemediation) {
         border = Border.all(color: const Color(0xFFFFB300), width: 3.5);
-      } else if (node.status == NodeState.available || node.status == NodeState.locked) {
+      } else if (node.status == NodeState.available ||
+          node.status == NodeState.upcoming ||
+          node.status == NodeState.locked) {
         border = Border.all(color: Colors.grey.shade300, width: 3);
       } else {
         border = Border.all(color: Colors.orange, width: 3);

@@ -42,11 +42,17 @@ class WindingPathPainter extends CustomPainter {
 
       final bool isCurrentDetour = nodes != null &&
           i + 1 < nodes!.length &&
-          (nodes![i].isRemediation || nodes![i + 1].isRemediation);
+          (nodes![i].isRemediation ||
+              nodes![i].status == NodeState.remediating ||
+              nodes![i + 1].isRemediation ||
+              nodes![i + 1].status == NodeState.remediating);
 
       final bool isCurrentBypassed = nodes != null &&
           i + 1 < nodes!.length &&
-          (nodes![i].state == NodeState.bypassed || nodes![i + 1].state == NodeState.bypassed);
+          (nodes![i].status == NodeState.bypassed ||
+              nodes![i].status == NodeState.skipped ||
+              nodes![i + 1].status == NodeState.bypassed ||
+              nodes![i + 1].status == NodeState.skipped);
 
       final segmentPath = Path();
       segmentPath.moveTo(p0.dx, p0.dy);
