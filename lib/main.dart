@@ -7,6 +7,7 @@ import 'app/router/app_router.dart';
 import 'app/theme/app_theme.dart';
 import 'core/storage/storage_provider.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/topic_prefetch_service.dart';
 import 'firebase_options.dart';
 
 @pragma('vm:entry-point')
@@ -82,11 +83,35 @@ void main() async {
   );
 }
 
-class SkillTwinApp extends ConsumerWidget {
+class SkillTwinApp extends ConsumerStatefulWidget {
   const SkillTwinApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SkillTwinApp> createState() => _SkillTwinAppState();
+}
+
+class _SkillTwinAppState extends ConsumerState<SkillTwinApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Prefetch upcoming topics after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _prefetchUpcomingTopics();
+    });
+  }
+
+  Future<void> _prefetchUpcomingTopics() async {
+    try {
+      final prefetchService = ref.read(topicPrefetchServiceProvider);
+      await prefetchService.prefetchUpcomingTopics();
+    } catch (e) {
+      // Silently fail - prefetching is best-effort optimization
+      debugPrint('Topic prefetch notice: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(

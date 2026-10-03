@@ -4,6 +4,7 @@ import '../../../../core/models/session_step.dart';
 import '../../../../core/models/session_result.dart';
 import '../../domain/repositories/sessions_repository.dart';
 import '../../data/repositories/sessions_repository_provider.dart';
+import '../../../home/presentation/providers/home_provider.dart';
 
 class SessionState {
   final LearningSession? session;
@@ -71,14 +72,15 @@ class SessionState {
 
 final sessionStateProvider = StateNotifierProvider.family<SessionNotifier, SessionState, String>((ref, sessionId) {
   final repository = ref.watch(sessionsRepositoryProvider);
-  return SessionNotifier(repository, sessionId);
+  return SessionNotifier(repository, sessionId, ref);
 });
 
 class SessionNotifier extends StateNotifier<SessionState> {
   final SessionsRepository _repository;
   final String _sessionId;
+  final Ref _ref;
 
-  SessionNotifier(this._repository, this._sessionId) : super(SessionState()) {
+  SessionNotifier(this._repository, this._sessionId, this._ref) : super(SessionState()) {
     loadSession();
   }
 
@@ -89,14 +91,18 @@ class SessionNotifier extends StateNotifier<SessionState> {
       
       // Handle resuming session
       int startIndex = -1; // Default to intro
-      // If we wanted to auto-skip intro if some progress exists:
-      // final firstUncompleted = session.steps.indexWhere((s) => !s.isCompleted);
-      // if (firstUncompleted > 0) startIndex = firstUncompleted;
-
       state = state.copyWith(session: session, currentStepIndex: startIndex, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: "Failed to load session. Please check your connection.");
     }
+  }
+
+  String get _effectiveTopicId {
+    final cId = state.session?.conceptId;
+    if (cId != null && cId.isNotEmpty) return cId;
+    final jId = state.session?.journeyNodeId;
+    if (jId != null && jId.isNotEmpty) return jId;
+    return _sessionId;
   }
 
   void startSession() {
@@ -106,6 +112,10 @@ class SessionNotifier extends StateNotifier<SessionState> {
       state = state.copyWith(
         currentStepIndex: resumeIndex != -1 ? resumeIndex : 0,
         startedAt: state.startedAt ?? DateTime.now(),
+      );
+      _ref.read(todayTaskStateProvider.notifier).markStarted(
+        topicId: _effectiveTopicId,
+        topicTitle: state.session?.conceptTitle,
       );
     }
   }
@@ -148,8 +158,15 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
       final result = await _repository.completeSession(_sessionId, submissionPayload);
       state = state.copyWith(result: result, isSubmitting: false);
+
+      // Single source of truth: propagate confirmed completion to Home & derived states
+      await _ref.read(todayTaskStateProvider.notifier).recordCompletion(
+        topicId: _effectiveTopicId,
+        topicTitle: state.session?.conceptTitle,
+      );
     } catch (e) {
       state = state.copyWith(isSubmitting: false, error: "Evaluation failed. Please try again.");
+      _ref.read(todayTaskStateProvider.notifier).recordFailure("Evaluation failed. Please try again.");
     }
   }
 }

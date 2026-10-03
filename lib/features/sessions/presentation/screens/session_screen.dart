@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/session_state_provider.dart';
+import '../../../../app/theme/app_theme.dart';
+import '../../../../core/widgets/skilltwin_loading_view.dart';
+import '../../../../core/widgets/skilltwin_background.dart';
+import '../../../../core/widgets/skilltwin_twin.dart';
 import '../widgets/session_intro_screen.dart';
 import 'session_content_screen.dart';
 import 'session_result_screen.dart';
@@ -21,7 +25,10 @@ class SessionScreen extends ConsumerWidget {
 
     if (state.isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: SkillTwinLoadingView.fullScreen(
+          message: 'SkillTwin is preparing your next step.',
+          subMessage: 'Personalizing your interactive practice session...',
+        ),
       );
     }
 
@@ -55,7 +62,7 @@ class SessionScreen extends ConsumerWidget {
         return await _showExitConfirmation(context) ?? false;
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFFAF9F6),
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -69,24 +76,12 @@ class SessionScreen extends ConsumerWidget {
               }
             },
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.assistant_outlined, color: Color(0xFFFF6D00)),
-              tooltip: 'Ask Mentor',
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                context.push('/mentor');
-              },
-            ),
-          ],
           title: state.isIntro || state.isFinished || state.isSubmitting
               ? Text(
-                  state.isIntro ? 'CAN I ACTUALLY DO IT?' : 'SESSION EVALUATION',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                    color: Color(0xFFFF6D00),
+                  state.isIntro ? 'Session Intro' : 'Session Evaluation',
+                  style: AppTypography.supporting.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.secondary,
                   ),
                 )
               : ClipRRect(
@@ -94,16 +89,18 @@ class SessionScreen extends ConsumerWidget {
                   child: LinearProgressIndicator(
                     value: (state.currentStepIndex + 1) / state.session!.steps.length,
                     minHeight: 6,
-                    backgroundColor: const Color(0xFFFF6D00).withValues(alpha: 0.1),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF6D00)),
+                    backgroundColor: AppTheme.primaryAccent.withValues(alpha: 0.1),
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryAccent),
                   ),
                 ),
         ),
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: _buildCurrentView(state, sessionId),
+        body: SkillTwinBackground(
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: _buildCurrentView(state, sessionId),
+              ),
             ),
           ),
         ),
@@ -168,32 +165,9 @@ class _EvaluationLoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(
-            width: 80,
-            height: 80,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-            ),
-          ),
-          const SizedBox(height: 40),
-          Text(
-            'Mentor is evaluating...',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 48.0),
-            child: Text(
-              'Analyzing your evidence to update your mental model and mastery state.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, height: 1.4),
-            ),
-          ),
-        ],
+      child: const SkillTwinLoadingView(
+        message: 'SkillTwin is preparing your next step.',
+        subMessage: 'Analyzing evidence to update your mental model and mastery state...',
       ),
     );
   }

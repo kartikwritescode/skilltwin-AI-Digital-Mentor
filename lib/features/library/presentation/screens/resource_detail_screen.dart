@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../app/theme/app_theme.dart';
+import '../../../../core/widgets/skilltwin_loading_view.dart';
+import '../../../../core/widgets/skilltwin_transition_switcher.dart';
+import '../../../../core/widgets/skilltwin_background.dart';
+import '../../../../core/widgets/skilltwin_twin.dart';
 import '../providers/library_provider.dart';
 import '../../../../core/models/resource.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
@@ -15,22 +20,45 @@ class ResourceDetailScreen extends ConsumerWidget {
     final resourceAsync = ref.watch(resourceDetailProvider(resourceId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('Resource Details'),
+        title: const Text('Resource Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: Icon(
+              ref.watch(libraryProvider).isSaved(resourceId)
+                  ? Icons.bookmark_rounded
+                  : Icons.bookmark_border_rounded,
+              color: ref.watch(libraryProvider).isSaved(resourceId)
+                  ? const Color(0xFF6366F1)
+                  : const Color(0xFF475569),
+            ),
+            tooltip: ref.watch(libraryProvider).isSaved(resourceId)
+                ? 'Remove from saved'
+                : 'Save resource',
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              ref.read(libraryProvider.notifier).toggleSave(resourceId);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
             onPressed: () => _confirmDelete(context, ref),
           ),
         ],
       ),
-      body: resourceAsync.when(
-        data: (resource) => ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
+      body: SkillTwinBackground(
+        child: SkillTwinTransitionSwitcher(
+        child: resourceAsync.when(
+          data: (resource) {
+            final bottomInset = AppSpacing.calculateBottomNavInset(context);
+            final hMargin = AppSpacing.responsiveHorizontalPadding(context);
+            return ListView(
+              key: const ValueKey('resource_detail_content'),
+              padding: EdgeInsets.fromLTRB(hMargin, 20, hMargin, bottomInset),
+              children: [
             _HeaderSection(resource: resource),
             const SizedBox(height: 32),
             if (resource.status != ResourceStatus.ready && resource.status != ResourceStatus.failed)
@@ -46,7 +74,8 @@ class ResourceDetailScreen extends ConsumerWidget {
                   children: resource.extractedConcepts
                       .map((c) => ActionChip(
                             label: Text(c, style: const TextStyle(fontSize: 12)),
-                            backgroundColor: Colors.orange.withOpacity(0.05),
+                            backgroundColor: AppTheme.primaryAccent.withValues(alpha: 0.06),
+                            side: const BorderSide(color: AppTheme.cardBorder),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             onPressed: () => context.push('/journey/concept/$c'),
                           ))
@@ -66,7 +95,7 @@ class ResourceDetailScreen extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.auto_awesome, color: Colors.orange, size: 18),
+                          const SkillTwinTwin(asset: TwinAsset.reading, size: 24),
                           const SizedBox(width: 10),
                           const Text(
                             'Personalized Study Note',
@@ -79,13 +108,13 @@ class ResourceDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       const Text(
                         'Your mentor has synthesized this document based on your active goals and current knowledge gaps.',
-                        style: TextStyle(color: Colors.black54, fontSize: 13, height: 1.4),
+                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.4),
                       ),
                       const SizedBox(height: 16),
-                      Text(
+                      const Text(
                         'READ PERSONALIZED NOTE',
                         style: TextStyle(
-                          color: Colors.orange.shade800,
+                          color: AppTheme.primaryAccent,
                           fontWeight: FontWeight.bold,
                           fontSize: 11,
                           letterSpacing: 1.1,
@@ -107,7 +136,7 @@ class ResourceDetailScreen extends ConsumerWidget {
                         children: resource.usedByJourneyNodes
                             .map((node) => ListTile(
                                   contentPadding: EdgeInsets.zero,
-                                  leading: const Icon(Icons.map_outlined, color: Colors.orange),
+                                  leading: const Icon(Icons.map_outlined, color: AppTheme.primaryAccent),
                                   title: Text(node, style: const TextStyle(fontWeight: FontWeight.w600)),
                                   trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                                   onTap: () => context.go('/journey'),
@@ -151,12 +180,22 @@ class ResourceDetailScreen extends ConsumerWidget {
               ),
             const SizedBox(height: 32),
           ],
+        );
+      },
+        loading: () => const SkillTwinLoadingView.fullScreen(
+          key: ValueKey('resource_detail_loading'),
+          message: 'SkillTwin is preparing your next step.',
+          subMessage: 'Analyzing learning resource...',
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
+        error: (err, _) => Center(
+          key: const ValueKey('resource_detail_error'),
+          child: Text('Error: $err'),
+        ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildSection(BuildContext context, {required String title, required Widget child}) {
     return Column(
@@ -206,12 +245,12 @@ class _HeaderSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.orange.withOpacity(0.1),
+            color: AppTheme.primaryAccent.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Icon(
             resource.type == ResourceType.pdf ? Icons.picture_as_pdf : Icons.link,
-            color: Colors.orange,
+            color: AppTheme.primaryAccent,
             size: 32,
           ),
         ),
@@ -259,7 +298,7 @@ class _ProcessingStatusCard extends StatelessWidget {
           const SizedBox(
             width: 40,
             height: 40,
-            child: CircularProgressIndicator(strokeWidth: 3, valueColor: AlwaysStoppedAnimation(Colors.orange)),
+            child: CircularProgressIndicator(strokeWidth: 3, valueColor: AlwaysStoppedAnimation(AppTheme.primaryAccent)),
           ),
           const SizedBox(height: 20),
           Text(

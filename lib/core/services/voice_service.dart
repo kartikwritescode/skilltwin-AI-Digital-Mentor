@@ -109,6 +109,8 @@ class SpeechService {
   Future<ContextualAskResponse> askVoiceQuestion(
     String filePath, {
     String? topicId,
+    TopicQuestionItem? currentQuestion,
+    String? selectedAnswer,
   }) async {
     final file = File(filePath);
     if (!await file.exists()) {
@@ -121,6 +123,17 @@ class SpeechService {
         filename: 'question.m4a',
       ),
       if (topicId != null) 'topic_id': topicId,
+      if (currentQuestion != null) ...{
+        'question_id': currentQuestion.id,
+        'question_prompt': currentQuestion.prompt,
+        'question_options': currentQuestion.options.join('|'),
+        'correct_answer': currentQuestion.correctAnswer,
+        'explanation': currentQuestion.explanation,
+        'context': 'Active Question: "${currentQuestion.prompt}". '
+            'Options: ${currentQuestion.options.join(", ")}. '
+            '${selectedAnswer != null ? 'User selected: "$selectedAnswer". ' : ''}',
+      },
+      if (selectedAnswer != null) 'selected_answer': selectedAnswer,
     });
 
     final response = await _apiClient.rawDio.post(
@@ -200,7 +213,11 @@ class VoiceConversationNotifier
     }
   }
 
-  Future<ContextualAskResponse?> stopAndAsk({String? topicId}) async {
+  Future<ContextualAskResponse?> stopAndAsk({
+    String? topicId,
+    TopicQuestionItem? currentQuestion,
+    String? selectedAnswer,
+  }) async {
     if (state.state != VoiceState.listening) return null;
 
     state = state.copyWith(state: VoiceState.transcribing);
@@ -220,6 +237,8 @@ class VoiceConversationNotifier
       final askResult = await _speechService.askVoiceQuestion(
         actualPath,
         topicId: topicId,
+        currentQuestion: currentQuestion,
+        selectedAnswer: selectedAnswer,
       );
 
       state = state.copyWith(

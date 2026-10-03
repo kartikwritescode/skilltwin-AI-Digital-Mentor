@@ -20,7 +20,9 @@ class GoalRepositoryImpl implements GoalRepository {
         if (goal.deadline != null)
           'deadline': goal.deadline!.toIso8601String().split('T').first,
         'current_knowledge': goal.existingKnowledge,
-        'learning_preferences': 'Hands-on and project-focused',
+        'learning_preferences': goal.preferredResources.isNotEmpty
+            ? goal.preferredResources.join(', ')
+            : 'Hands-on and project-focused',
       },
     );
     return Goal.fromJson(response.data as Map<String, dynamic>);

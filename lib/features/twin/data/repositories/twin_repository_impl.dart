@@ -7,20 +7,42 @@ import '../../domain/repositories/twin_repository.dart';
 
 class TwinRepositoryImpl implements TwinRepository {
   final ApiClient _apiClient;
+  static TwinDashboardData? _cachedData;
+  static DateTime? _lastFetchedAt;
 
   TwinRepositoryImpl(this._apiClient);
 
   @override
-  Future<TwinDashboardData> getTwinDashboard() async {
+  TwinDashboardData? getCachedTwinDashboard() => _cachedData;
+
+  @override
+  Future<TwinDashboardData> getTwinDashboard({bool forceRefresh = false}) async {
+    // Stale-While-Revalidate: Return cache immediately if fresh and not forcing refresh
+    if (!forceRefresh && _cachedData != null && _lastFetchedAt != null) {
+      final age = DateTime.now().difference(_lastFetchedAt!);
+      if (age < const Duration(minutes: 5)) {
+        return _cachedData!;
+      }
+    }
+
     try {
       final response = await _apiClient.get('/twin/dashboard');
       if (response.data is Map<String, dynamic>) {
-        return TwinDashboardData.fromJson(response.data as Map<String, dynamic>);
+        final data = TwinDashboardData.fromJson(response.data as Map<String, dynamic>);
+        _cachedData = data;
+        _lastFetchedAt = DateTime.now();
+        return data;
       }
-      return const TwinDashboardData(userId: '');
+      return _cachedData ?? const TwinDashboardData(userId: '');
     } catch (e) {
+      // Offline fallback: preserve previously cached state
+      if (_cachedData != null) {
+        return _cachedData!;
+      }
       if (e is ServerFailure && e.message.toLowerCase().contains('not found')) {
-        return const TwinDashboardData(userId: '', hasSufficientData: false);
+        const empty = TwinDashboardData(userId: '', hasSufficientData: false);
+        _cachedData = empty;
+        return empty;
       }
       rethrow;
     }

@@ -78,4 +78,9 @@ class MockJourneyRepository implements JourneyRepository {
   Future<void> updateNodeStatus(String nodeId, NodeStatus status) async {
     await Future.delayed(const Duration(milliseconds: 500));
   }
+
+  @override
+  Future<void> prewarmNodeExpansion(String pathId, String nodeId) async {
+    // Mock pre-warm no-op
+  }
 }

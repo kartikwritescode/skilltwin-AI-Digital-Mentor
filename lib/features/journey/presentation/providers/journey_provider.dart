@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/repositories/journey_repository.dart';
 import '../../data/repositories/journey_repository_provider.dart';
 import '../../../../core/models/journey_node.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 
 class JourneyState {
   final List<JourneyNode> nodes;
@@ -55,5 +54,13 @@ class JourneyNotifier extends StateNotifier<JourneyState> {
     if (state.nodes.isEmpty) return 0.0;
     final completed = state.nodes.where((n) => n.status == NodeStatus.completed).length;
     return completed / state.nodes.length;
+  }
+
+  Future<void> prewarmHorizonNode(String pathId, String nodeId) async {
+    try {
+      await _repository.prewarmNodeExpansion(pathId, nodeId);
+    } catch (_) {
+      // Fire-and-forget
+    }
   }
 }

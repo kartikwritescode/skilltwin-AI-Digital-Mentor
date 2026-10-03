@@ -416,7 +416,7 @@ All protected endpoints require an `Authorization: Bearer <JWT>` header.
 | `GET` | `/api/v1/goals` | List learner goals and progress milestones. |
 | `GET` | `/api/v1/journeys/{goal_id}` | Topological journey node sequence with unlock statuses. |
 | `GET` | `/api/v1/mentor/recommendations/current` | Active high-leverage learning recommendation. |
-| `POST` | `/api/v1/mentor/chat` | Conversational Socratic mentor chat. |
+| `POST` | `/api/v1/mentor/chat` | Conversational mentor chat to ask questions and deepen mastery. |
 
 ---
 

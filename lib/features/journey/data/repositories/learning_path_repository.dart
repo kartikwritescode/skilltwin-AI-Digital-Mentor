@@ -24,7 +24,13 @@ abstract class LearningPathRepository {
     String topicId,
     List<AnswerSubmissionItem> answers,
   );
-  Future<ContextualAskResponse> askTopicQuestion(String topicId, String query);
+  Future<ContextualAskResponse> askTopicQuestion(
+    String topicId,
+    String query, {
+    TopicQuestionItem? currentQuestion,
+    String? selectedAnswer,
+    Map<String, dynamic>? questionContext,
+  });
 }
 
 class LearningPathRepositoryImpl implements LearningPathRepository {
@@ -141,13 +147,40 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
 
   @override
   Future<ContextualAskResponse> askTopicQuestion(
-      String topicId, String query) async {
+    String topicId,
+    String query, {
+    TopicQuestionItem? currentQuestion,
+    String? selectedAnswer,
+    Map<String, dynamic>? questionContext,
+  }) async {
+    final payload = <String, dynamic>{
+      'query': query,
+      'topic_id': topicId,
+      if (currentQuestion != null) ...{
+        'question_id': currentQuestion.id,
+        'question_prompt': currentQuestion.prompt,
+        'question_options': currentQuestion.options,
+        'correct_answer': currentQuestion.correctAnswer,
+        'explanation': currentQuestion.explanation,
+        'current_question': {
+          'id': currentQuestion.id,
+          'prompt': currentQuestion.prompt,
+          'options': currentQuestion.options,
+          'correct_answer': currentQuestion.correctAnswer,
+          'explanation': currentQuestion.explanation,
+          'selected_answer': selectedAnswer,
+        },
+        'context': 'Active Question: "${currentQuestion.prompt}". '
+            'Options: ${currentQuestion.options.join(", ")}. '
+            '${selectedAnswer != null ? 'User selected: "$selectedAnswer". ' : ''}',
+      },
+      if (questionContext != null) ...questionContext,
+      if (selectedAnswer != null) 'selected_answer': selectedAnswer,
+    };
+
     final response = await _apiClient.post(
       '/topics/$topicId/ask',
-      data: {
-        'query': query,
-        'topic_id': topicId,
-      },
+      data: payload,
     );
     return ContextualAskResponse.fromJson(
         response.data as Map<String, dynamic>);

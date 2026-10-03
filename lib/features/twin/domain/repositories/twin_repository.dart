@@ -4,6 +4,7 @@ import '../../../../core/models/twin_dashboard.dart';
 
 abstract class TwinRepository {
   Future<TwinDashboardData> getTwinDashboard();
+  TwinDashboardData? getCachedTwinDashboard() => null;
   Future<List<LearnerConcept>> getLearnerState();
   Future<List<Evidence>> getEvidenceHistory();
   Future<LearnerConcept> getConceptById(String conceptId);

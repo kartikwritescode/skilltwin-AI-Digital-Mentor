@@ -16,19 +16,27 @@ import '../../features/sessions/presentation/screens/session_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/auth/presentation/screens/intro_carousel_screen.dart';
+import '../../features/auth/presentation/providers/intro_provider.dart';
 import '../../features/onboarding/presentation/screens/onboarding_flow_screen.dart';
 import '../../features/teach_mode/presentation/screens/teach_mode_screen.dart';
 import '../../features/teach_mode/presentation/screens/teach_mode_report_screen.dart';
 import '../../features/sessions/presentation/screens/revision_screen.dart';
 import '../../features/sessions/presentation/screens/revision_retrieval_screen.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/streak/presentation/screens/streak_screen.dart';
 import '../../features/main_wrapper.dart';
+import '../../core/navigation/skilltwin_page_transitions.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 final shellNavigatorKey = GlobalKey<NavigatorState>();
 
+final splashCompleteProvider = StateProvider<bool>((ref) => false);
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
+  final isSplashComplete = ref.watch(splashCompleteProvider);
+  final isIntroComplete = ref.watch(introCompletedProvider);
 
   return GoRouter(
     initialLocation: '/splash',
@@ -36,24 +44,36 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final status = authState.status;
       final isSplash = state.uri.path == '/splash';
+      final isIntro = state.uri.path == '/intro';
       final isAuth = state.uri.path == '/login' || state.uri.path == '/signup';
 
-      if (status == AuthStatus.initial || status == AuthStatus.loading) {
+      // Keep showing splash until initial entrance animation finishes
+      // AND auth state is resolved beyond initial/loading.
+      if (!isSplashComplete || status == AuthStatus.initial || status == AuthStatus.loading) {
         return isSplash ? null : '/splash';
       }
 
-      if (status == AuthStatus.unauthenticated || status == AuthStatus.error) {
-        return isAuth ? null : '/login';
+      // If user is authenticated, route directly to the main app
+      if (status == AuthStatus.authenticated) {
+        if (isSplash || isIntro || isAuth) {
+          return '/';
+        }
+        return null;
       }
 
+      // If user needs onboarding (e.g. initial profile setup)
       if (status == AuthStatus.onboardingRequired) {
         return state.uri.path == '/onboarding' ? null : '/onboarding';
       }
 
-      if (status == AuthStatus.authenticated) {
-        if (isSplash || isAuth) {
-          return '/';
+      // For unauthenticated users:
+      if (status == AuthStatus.unauthenticated || status == AuthStatus.error) {
+        // First-time users see the friendly introductory carousel
+        if (!isIntroComplete) {
+          return isIntro ? null : '/intro';
         }
+        // Returning unauthenticated users go directly to login/signup
+        return isAuth ? null : '/login';
       }
 
       return null;
@@ -61,19 +81,42 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/splash',
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const SplashScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      ),
+      GoRoute(
+        path: '/intro',
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const IntroCarouselScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
       ),
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => skillTwinTransitionPage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+        ),
       ),
       GoRoute(
         path: '/signup',
-        builder: (context, state) => const SignupScreen(),
+        pageBuilder: (context, state) => skillTwinTransitionPage(
+          key: state.pageKey,
+          child: const SignupScreen(),
+        ),
       ),
       GoRoute(
         path: '/onboarding',
-        builder: (context, state) => const OnboardingFlowScreen(),
+        pageBuilder: (context, state) => skillTwinTransitionPage(
+          key: state.pageKey,
+          child: const OnboardingFlowScreen(),
+        ),
       ),
       ShellRoute(
         navigatorKey: shellNavigatorKey,
@@ -81,101 +124,160 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/',
-            builder: (context, state) => const HomeScreen(),
+            pageBuilder: (context, state) => skillTwinTransitionPage(
+              key: state.pageKey,
+              child: const HomeScreen(),
+            ),
           ),
           GoRoute(
             path: '/journey',
-            builder: (context, state) => const JourneyScreen(),
+            pageBuilder: (context, state) => skillTwinTransitionPage(
+              key: state.pageKey,
+              child: const JourneyScreen(),
+            ),
             routes: [
               GoRoute(
                 path: 'concept/:conceptId',
-                builder: (context, state) => ConceptDetailScreen(
-                  conceptId: state.pathParameters['conceptId'] ?? '',
+                pageBuilder: (context, state) => skillTwinTransitionPage(
+                  key: state.pageKey,
+                  child: ConceptDetailScreen(
+                    conceptId: state.pathParameters['conceptId'] ?? '',
+                  ),
                 ),
               ),
               GoRoute(
                 path: 'topic/:topicId',
-                builder: (context, state) => TopicDetailScreen(
-                  topicId: state.pathParameters['topicId'] ?? '',
+                pageBuilder: (context, state) => skillTwinTransitionPage(
+                  key: state.pageKey,
+                  child: TopicDetailScreen(
+                    topicId: state.pathParameters['topicId'] ?? '',
+                  ),
                 ),
               ),
               GoRoute(
                 path: 'topics/:topicId',
-                builder: (context, state) => TopicDetailScreen(
-                  topicId: state.pathParameters['topicId'] ?? '',
+                pageBuilder: (context, state) => skillTwinTransitionPage(
+                  key: state.pageKey,
+                  child: TopicDetailScreen(
+                    topicId: state.pathParameters['topicId'] ?? '',
+                  ),
                 ),
               ),
             ],
           ),
           GoRoute(
             path: '/twin',
-            builder: (context, state) => const TwinScreen(),
+            pageBuilder: (context, state) => skillTwinTransitionPage(
+              key: state.pageKey,
+              child: const TwinScreen(),
+            ),
             routes: [
               GoRoute(
                 path: 'maintenance',
-                builder: (context, state) => const KnowledgeMaintenanceScreen(),
+                pageBuilder: (context, state) => skillTwinTransitionPage(
+                  key: state.pageKey,
+                  child: const KnowledgeMaintenanceScreen(),
+                ),
               ),
             ],
           ),
           GoRoute(
             path: '/library',
-            builder: (context, state) => const LibraryScreen(),
+            pageBuilder: (context, state) => skillTwinTransitionPage(
+              key: state.pageKey,
+              child: const LibraryScreen(),
+            ),
             routes: [
               GoRoute(
                 path: 'resource/:resourceId',
-                builder: (context, state) => ResourceDetailScreen(
-                  resourceId: state.pathParameters['resourceId'] ?? '',
+                pageBuilder: (context, state) => skillTwinTransitionPage(
+                  key: state.pageKey,
+                  child: ResourceDetailScreen(
+                    resourceId: state.pathParameters['resourceId'] ?? '',
+                  ),
                 ),
               ),
               GoRoute(
                 path: 'note/:resourceId',
-                builder: (context, state) => PersonalizedNoteScreen(
-                  resourceId: state.pathParameters['resourceId'] ?? '',
+                pageBuilder: (context, state) => skillTwinTransitionPage(
+                  key: state.pageKey,
+                  child: PersonalizedNoteScreen(
+                    resourceId: state.pathParameters['resourceId'] ?? '',
+                  ),
                 ),
               ),
             ],
           ),
           GoRoute(
             path: '/profile',
-            builder: (context, state) => const ProfileScreen(),
+            pageBuilder: (context, state) => skillTwinTransitionPage(
+              key: state.pageKey,
+              child: const ProfileScreen(),
+            ),
           ),
         ],
       ),
       GoRoute(
+        path: '/streak',
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) => skillTwinTransitionPage(
+          key: state.pageKey,
+          child: const StreakScreen(),
+        ),
+      ),
+      GoRoute(
         path: '/mentor',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const MentorScreen(),
+        pageBuilder: (context, state) => skillTwinTransitionPage(
+          key: state.pageKey,
+          child: const MentorScreen(),
+        ),
       ),
       GoRoute(
         path: '/session/:sessionId',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final sessionId = state.pathParameters['sessionId'] ?? '';
-          return SessionScreen(sessionId: sessionId);
+          return skillTwinTransitionPage(
+            key: state.pageKey,
+            child: SessionScreen(sessionId: sessionId),
+          );
         },
       ),
       GoRoute(
         path: '/teach/:conceptId',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => TeachModeScreen(
-          conceptId: state.pathParameters['conceptId'],
+        pageBuilder: (context, state) => skillTwinTransitionPage(
+          key: state.pageKey,
+          child: TeachModeScreen(
+            conceptId: state.pathParameters['conceptId'],
+          ),
         ),
       ),
       GoRoute(
         path: '/teach/report',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const TeachModeReportScreen(),
+        pageBuilder: (context, state) => skillTwinTransitionPage(
+          key: state.pageKey,
+          child: const TeachModeReportScreen(),
+        ),
       ),
       GoRoute(
         path: '/revision',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const RevisionScreen(),
+        pageBuilder: (context, state) => skillTwinTransitionPage(
+          key: state.pageKey,
+          child: const RevisionScreen(),
+        ),
         routes: [
           GoRoute(
             path: 'retrieval/:conceptId',
             parentNavigatorKey: rootNavigatorKey,
-            builder: (context, state) => RevisionRetrievalScreen(
-              conceptId: state.pathParameters['conceptId'] ?? '',
+            pageBuilder: (context, state) => skillTwinTransitionPage(
+              key: state.pageKey,
+              child: RevisionRetrievalScreen(
+                conceptId: state.pathParameters['conceptId'] ?? '',
+              ),
             ),
           ),
         ],

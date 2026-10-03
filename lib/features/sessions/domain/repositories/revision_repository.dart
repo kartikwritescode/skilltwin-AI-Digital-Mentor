@@ -13,5 +13,19 @@ abstract class RevisionRepository {
   });
   Future<List<MentorNotification>> getMentorNotifications();
   Future<void> markNotificationAsRead(String id);
+
+  // Feynman Teachback Conversation Methods
+  Future<Map<String, dynamic>> getTeachbackFeedback({
+    required String conceptId,
+    required String userExplanation,
+    required List<Map<String, String>> conversationHistory,
+  });
+
+  Future<Map<String, dynamic>> submitTeachbackSession({
+    required String conceptId,
+    required int turnCount,
+    required double finalMasteryScore,
+    required List<Map<String, String>> conversationHistory,
+  });
 }
 

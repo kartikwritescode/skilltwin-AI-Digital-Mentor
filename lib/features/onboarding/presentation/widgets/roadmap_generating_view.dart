@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../../app/theme/app_theme.dart';
+import '../../../../core/widgets/skilltwin_twin.dart';
 
 class RoadmapGeneratingView extends StatefulWidget {
   final String goalTitle;
@@ -108,50 +110,48 @@ class _RoadmapGeneratingViewState extends State<RoadmapGeneratingView>
   Widget build(BuildContext context) {
     final stage = _stages[_currentStageIndex];
 
+    final mediaQuery = MediaQuery.of(context);
+    final minContentHeight = mediaQuery.size.height - mediaQuery.padding.vertical;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                  maxWidth: 580,
-                ),
-                child: Padding(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: minContentHeight,
+              maxWidth: 580,
+            ),
+            child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const SizedBox(height: 16),
 
-                      // Animated Glowing Pulse Icon
-                      ScaleTransition(
-                        scale: _pulseAnimation,
-                        child: Container(
-                          width: 84,
-                          height: 84,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFFF6D00).withValues(alpha: 0.12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFF6D00).withValues(alpha: 0.25),
-                                blurRadius: 28,
-                                spreadRadius: 3,
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 400),
-                              child: Icon(
-                                stage.icon,
-                                key: ValueKey<IconData>(stage.icon),
-                                size: 40,
-                                color: const Color(0xFFFF6D00),
+                      // Animated Glowing Companion Mascot
+                      RepaintBoundary(
+                        child: ScaleTransition(
+                          scale: _pulseAnimation,
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppTheme.primaryAccent.withValues(alpha: 0.1),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryAccent.withValues(alpha: 0.22),
+                                  blurRadius: 28,
+                                  spreadRadius: 3,
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: SkillTwinTwin.thinking(
+                                size: 80,
+                                isDecorative: true,
                               ),
                             ),
                           ),
@@ -344,11 +344,9 @@ class _RoadmapGeneratingViewState extends State<RoadmapGeneratingView>
                   ),
                 ),
               ),
-            );
-          },
-        ),
-      ),
-    );
+            ),
+          ),
+        );
   }
 }
 

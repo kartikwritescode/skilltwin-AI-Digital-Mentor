@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import '../../../../app/theme/app_theme.dart';
+import '../../../../core/widgets/skilltwin_background.dart';
 import '../providers/onboarding_provider.dart';
-import '../widgets/roadmap_generating_view.dart';
-import '../../../journey/presentation/providers/learning_path_provider.dart';
-import '../../../journey/presentation/providers/youtube_provider.dart';
 import '../../../home/presentation/providers/home_provider.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../core/models/goal.dart';
+import '../../../journey/presentation/providers/learning_path_provider.dart';
 
+/// Conversational "Meet Your Twin" onboarding flow.
+///
+/// Designed with a minimalist vertical hierarchy:
+///   [Breathing space & subtle top affordance]
+///   [Central prominent mascot]
+///   [One conversational question in friendly semi-bold typography]
+///   [Answer / action area]
+///
+/// No bulky cards behind the mascot, no decorative clutter, no competing headings.
 class OnboardingFlowScreen extends ConsumerStatefulWidget {
   const OnboardingFlowScreen({super.key});
+
+  static int? normalizeDailyMinutes(String input) =>
+      _OnboardingFlowScreenState.normalizeDailyMinutes(input);
 
   @override
   ConsumerState<OnboardingFlowScreen> createState() =>
@@ -18,929 +29,1500 @@ class OnboardingFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
-  final PageController _pageController = PageController();
-  final TextEditingController _goalController = TextEditingController();
-  final TextEditingController _customTargetController =
-      TextEditingController();
-  final TextEditingController _knowledgeController = TextEditingController();
-  final TextEditingController _youtubeUrlController = TextEditingController();
+  late final PageController _pageController;
+  late final TextEditingController _customGoalController;
+  late final TextEditingController _customLevelController;
+  late final TextEditingController _customTimeController;
 
-  bool _isYouTubeMode = false;
-  bool _isSubmittingYouTube = false;
+  bool _isCustomLevel = false;
+  bool _isCustomTime = false;
+  bool _isCustomDeadline = false;
+  String? _customLevelError;
+  String? _customTimeError;
+  bool _isSubmitting = false;
 
-  String _targetLevel = 'Intermediate';
-  DateTime _deadline = DateTime.now().add(const Duration(days: 90));
-  String _dailyTime = '30 mins';
-  int _dailyMinutes = 30;
-  final List<String> _knowledgeTags = [];
-
-  final List<String> _levelOptions = [
-    'Beginner',
-    'Intermediate',
-    'Expert',
-    'Interview Ready',
-    'Other',
+  static const List<String> _popularGoals = [
+    'Flutter & Mobile Apps',
+    'Machine Learning & AI',
+    'Full-Stack Web Development',
+    'Python & Data Science',
+    'Cloud & DevOps Architecture',
   ];
+
+  static const List<Map<String, String>> _standardLevels = [
+    {
+      'title': 'Complete beginner',
+      'subtitle': 'Starting fresh from zero with curiosity',
+    },
+    {
+      'title': 'I know the basics',
+      'subtitle': 'Familiar with core concepts and fundamental syntax',
+    },
+    {
+      'title': 'Intermediate',
+      'subtitle': 'Built small projects, looking for architectural depth',
+    },
+    {
+      'title': 'Advanced',
+      'subtitle': 'Experienced, polishing systems & production mastery',
+    },
+  ];
+
+  static const List<Map<String, dynamic>> _quickDailyTimes = [
+    {
+      'minutes': 15,
+      'title': '15 min',
+      'subtitle': 'Quick daily habit that fits any schedule',
+    },
+    {
+      'minutes': 30,
+      'title': '30 min',
+      'subtitle': 'Recommended balance for steady long-term retention',
+    },
+    {
+      'minutes': 45,
+      'title': '45 min',
+      'subtitle': 'Focused momentum and deep active recall',
+    },
+    {
+      'minutes': 60,
+      'title': '60 min',
+      'subtitle': 'Immersive daily learning sprint',
+    },
+    {
+      'minutes': 90,
+      'title': '90+ min',
+      'subtitle': 'Accelerated mastery for fast results',
+    },
+  ];
+
+  static const List<Map<String, dynamic>> _quickDeadlines = [
+    {
+      'days': 0,
+      'title': 'No deadline',
+      'subtitle': 'Learn at my own rhythm, no pressure',
+    },
+    {
+      'days': 7,
+      'title': 'Within 7 days',
+      'subtitle': 'High-velocity 1-week sprint',
+    },
+    {
+      'days': 30,
+      'title': 'Within 30 days',
+      'subtitle': '1-month focused milestone',
+    },
+    {
+      'days': 60,
+      'title': 'Within 60 days',
+      'subtitle': '2-month consistent progression',
+    },
+    {
+      'days': 90,
+      'title': 'Within 90 days',
+      'subtitle': '3-month comprehensive curriculum',
+    },
+  ];
+
+  static const List<Map<String, String>> _learningMethods = [
+    {
+      'title': 'Read & understand',
+      'subtitle': 'Clear mental models, diagrams, and concise explanations',
+    },
+    {
+      'title': 'Practice problems',
+      'subtitle': 'Hands-on debugging challenges and code diagnostics',
+    },
+    {
+      'title': 'Build projects',
+      'subtitle': 'Learn by crafting real-world functional applications',
+    },
+    {
+      'title': 'Video resources',
+      'subtitle': 'Visual lectures and walkthroughs for tricky topics',
+    },
+    {
+      'title': 'Interactive quizzes',
+      'subtitle': 'Bite-sized active checkpoints to test knowledge',
+    },
+    {
+      'title': 'Teach it back',
+      'subtitle': 'Explain concepts to your Twin to identify blindspots',
+    },
+    {
+      'title': 'Flashcards / spaced recall',
+      'subtitle': 'Algorithmic spaced repetition to prevent forgetting',
+    },
+    {
+      'title': 'Mixed approach',
+      'subtitle': 'A personalized blend adapted to each topic',
+    },
+  ];
+
+  static const List<Map<String, String>> _videoPreferences = [
+    {
+      'title': 'Yes, show useful videos',
+      'subtitle': 'Curated video explainers woven into key topics',
+    },
+    {
+      'title': 'Only when helpful',
+      'subtitle': 'Keep things text/code first, video only for visual ideas',
+    },
+    {
+      'title': 'No, keep it focused',
+      'subtitle': 'Pure text, interactive code, and diagrams — zero video distractions',
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final initialState = ref.read(onboardingProvider);
+    _pageController = PageController(initialPage: initialState.currentStep);
+    _customGoalController =
+        TextEditingController(text: initialState.goal.title);
+
+    final currentLevel = initialState.goal.currentLevel ?? 'Intermediate';
+    final isStandardLevel =
+        _standardLevels.any((l) => l['title'] == currentLevel);
+    if (!isStandardLevel && currentLevel.isNotEmpty) {
+      _isCustomLevel = true;
+      _customLevelController = TextEditingController(text: currentLevel);
+    } else {
+      _customLevelController = TextEditingController();
+    }
+
+    final dailyMinutes = initialState.goal.dailyMinutes;
+    final isQuickTime =
+        _quickDailyTimes.any((t) => t['minutes'] == dailyMinutes);
+    if (!isQuickTime && dailyMinutes > 0) {
+      _isCustomTime = true;
+      _customTimeController =
+          TextEditingController(text: '$dailyMinutes minutes');
+    } else {
+      _customTimeController = TextEditingController();
+    }
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _goalController.dispose();
-    _customTargetController.dispose();
-    _knowledgeController.dispose();
-    _youtubeUrlController.dispose();
+    _customGoalController.dispose();
+    _customLevelController.dispose();
+    _customTimeController.dispose();
     super.dispose();
   }
 
-  bool _isValidPlaylistUrl(String url) {
-    final clean = url.trim();
-    if (clean.isEmpty) return false;
-    if (RegExp(r'^(PL|UU|FL|RD|OLAK5uy_)[a-zA-Z0-9_-]{10,}$').hasMatch(clean)) {
-      return true;
-    }
-    return clean.contains('list=') && (clean.contains('youtube.com') || clean.contains('youtu.be'));
+  void _goToStep(int step) {
+    FocusScope.of(context).unfocus();
+    ref.read(onboardingProvider.notifier).setStep(step);
+    _pageController.animateToPage(
+      step,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeInOutCubic,
+    );
   }
 
   void _next() {
-    final state = ref.read(onboardingProvider);
-    if (state.currentStep < 5) {
-      ref.read(onboardingProvider.notifier).nextStep();
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOutCubic,
-      );
+    final current = ref.read(onboardingProvider).currentStep;
+    if (current < 7) {
+      _goToStep(current + 1);
     } else {
       _submit();
     }
   }
 
-  Future<void> _submit() async {
-    FocusScope.of(context).unfocus();
+  void _previous() {
+    final current = ref.read(onboardingProvider).currentStep;
+    if (current > 0) {
+      _goToStep(current - 1);
+    }
+  }
 
-    if (_isYouTubeMode) {
-      setState(() => _isSubmittingYouTube = true);
-      try {
-        await ref.read(youtubeRepositoryProvider).importPlaylist(
-          url: _youtubeUrlController.text.trim(),
-          dailyMinutes: _dailyMinutes,
-          targetLevel: _targetLevel,
-          deadline: _deadline,
-          currentKnowledge: _knowledgeTags,
-          pace: 'normal',
-          strictMode: true,
-        );
-        ref.read(authProvider.notifier).setOnboardingComplete();
+  Future<void> _submit() async {
+    if (_isSubmitting) return;
+    _isSubmitting = true;
+    FocusScope.of(context).unfocus();
+    try {
+      final success = await ref.read(onboardingProvider.notifier).submitGoal();
+      if (success && mounted) {
         ref.invalidate(activeLearningPathProvider);
         ref.invalidate(homeDashboardProvider);
-        if (mounted) {
-          context.go('/journey');
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() => _isSubmittingYouTube = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(e.toString().replaceAll("Exception: ", "")),
-              backgroundColor: Colors.red.shade700,
-            ),
-          );
-        }
+        context.go('/');
       }
-      return;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  static int? normalizeDailyMinutes(String input) {
+    final clean = input.trim().toLowerCase();
+    if (clean.isEmpty) return null;
+
+    final directNum = int.tryParse(clean);
+    if (directNum != null) {
+      if (directNum >= 5 && directNum <= 480) return directNum;
+      return null;
     }
 
-    final customTarget = _targetLevel == 'Other' ||
-            _customTargetController.text.trim().isNotEmpty
-        ? _customTargetController.text.trim()
-        : null;
-
-    final goal = Goal(
-      id: '',
-      title: _goalController.text.trim(),
-      targetLevel: _targetLevel,
-      customTarget: customTarget,
-      deadline: _deadline,
-      dailyMinutes: _dailyMinutes,
-      dailyTime: _dailyTime,
-      existingKnowledge: _knowledgeTags,
-    );
-
-    ref.read(onboardingProvider.notifier).updateGoal(goal);
-    final success = await ref.read(onboardingProvider.notifier).submitGoal();
-    if (success && mounted) {
-      ref.invalidate(activeLearningPathProvider);
-      ref.invalidate(homeDashboardProvider);
-      context.go('/journey');
-    } else if (!success && mounted) {
-      final error = ref.read(onboardingProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error ?? 'Failed to generate roadmap. Please try again.'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
+    final combinedMatch = RegExp(
+            r'^(\d+)\s*(?:h|hr|hrs|hour|hours)\s*(\d+)?\s*(?:m|min|mins|minute|minutes)?$')
+        .firstMatch(clean);
+    if (combinedMatch != null) {
+      final hours = int.tryParse(combinedMatch.group(1) ?? '0') ?? 0;
+      final mins = int.tryParse(combinedMatch.group(2) ?? '0') ?? 0;
+      final total = (hours * 60) + mins;
+      if (total >= 5 && total <= 480) return total;
+      return null;
     }
+
+    final decimalMatch =
+        RegExp(r'^(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)$')
+            .firstMatch(clean);
+    if (decimalMatch != null) {
+      final hours = double.tryParse(decimalMatch.group(1)!);
+      if (hours != null) {
+        final total = (hours * 60).round();
+        if (total >= 5 && total <= 480) return total;
+        return null;
+      }
+    }
+
+    final minuteMatch =
+        RegExp(r'^(\d+)\s*(?:m|min|mins|minute|minutes)$').firstMatch(clean);
+    if (minuteMatch != null) {
+      final mins = int.tryParse(minuteMatch.group(1)!);
+      if (mins != null && mins >= 5 && mins <= 480) return mins;
+      return null;
+    }
+
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingProvider);
 
-    if (state.isLoading || _isSubmittingYouTube) {
-      return RoadmapGeneratingView(
-        goalTitle: _isYouTubeMode
-            ? "YouTube Playlist Curriculum"
-            : _goalController.text.trim(),
-      );
+    if (_pageController.hasClients &&
+        _pageController.page?.round() != state.currentStep) {
+      _pageController.jumpToPage(state.currentStep);
     }
 
-    final isNextEnabled = _canProceed(state.currentStep);
+    if (state.isLoading) {
+      return _buildLoadingScreen();
+    }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
-      appBar: AppBar(
+    return PopScope(
+      canPop: state.currentStep == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _previous();
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: state.currentStep > 0
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                onPressed: () {
-                  ref.read(onboardingProvider.notifier).previousStep();
-                  _pageController.previousPage(
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeInOutCubic,
-                  );
-                },
-              )
-            : null,
-        title: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: (state.currentStep + 1) / 6,
-            minHeight: 6,
-            backgroundColor: const Color(0xFFFF6D00).withValues(alpha: 0.15),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF6D00)),
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: TextButton(
-              onPressed: isNextEnabled ? _next : null,
-              child: Text(
-                state.currentStep == 5 ? 'CREATE ROADMAP' : 'NEXT',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isNextEnabled
-                      ? const Color(0xFFFF6D00)
-                      : Colors.grey.shade400,
+        body: SkillTwinBackground(
+          child: SafeArea(
+            child: Column(
+            children: [
+              _buildTopBar(state),
+              if (state.error != null) _buildErrorBanner(state.error!),
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildOpeningStep(),
+                    _buildGoalStep(state),
+                    _buildLevelStep(state),
+                    _buildDailyTimeStep(state),
+                    _buildDeadlineStep(state),
+                    _buildLearningMethodsStep(state),
+                    _buildVideoPreferenceStep(state),
+                    _buildReadyStep(state),
+                  ],
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(),
+    ),
+  );
+}
+
+  Widget _buildTopBar(OnboardingState state) {
+    final step = state.currentStep;
+    final isIntro = step == 0;
+    final isReady = step == 7;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+      child: Row(
         children: [
-          _buildStep1(),
-          _buildStep2(),
-          _buildStep3(),
-          _buildStep4(),
-          _buildStep5(),
-          _buildStep6(),
+          if (step > 0)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+              color: AppColors.textPrimary,
+              splashRadius: 22,
+              onPressed: _previous,
+            )
+          else
+            const SizedBox(width: 44, height: 44),
+          Expanded(
+            child: (isIntro || isReady)
+                ? const SizedBox.shrink()
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(6, (index) {
+                      final questionIndex = index + 1; // questions 1 through 6
+                      final isCurrent = questionIndex == step;
+                      final isDone = questionIndex < step;
+
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        width: isCurrent ? 20.0 : 6.0,
+                        height: 4.0,
+                        margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                        decoration: BoxDecoration(
+                          color: isDone || isCurrent
+                              ? AppColors.secondary
+                              : AppColors.secondary.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      );
+                    }),
+                  ),
+          ),
+          const SizedBox(width: 44, height: 44),
         ],
       ),
     );
   }
 
-  bool _canProceed(int step) {
-    switch (step) {
-      case 0:
-        if (_isYouTubeMode) {
-          return _isValidPlaylistUrl(_youtubeUrlController.text);
-        }
-        return _goalController.text.trim().isNotEmpty;
-      case 1:
-        if (_targetLevel == 'Other') {
-          return _customTargetController.text.trim().isNotEmpty;
-        }
-        return true;
-      default:
-        return true;
-    }
+  Widget _buildErrorBanner(String error) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline_rounded,
+              color: Colors.red.shade700, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              error,
+              style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+            ),
+          ),
+          TextButton(
+            onPressed: _submit,
+            child: Text(
+              'Retry',
+              style: TextStyle(
+                color: Colors.red.shade900,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildStep1() {
-    final isUrlValid = _isValidPlaylistUrl(_youtubeUrlController.text);
-    final hasUrlText = _youtubeUrlController.text.trim().isNotEmpty;
+  // ─────────────────────────────────────────────────────────────
+  // STEP 0: WELCOME / INTRO
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildOpeningStep() {
+    return _ConversationalStepLayout(
+      mascotAsset: 'assets/mascots/twin_home.webp',
+      question: 'Before we start...',
+      subtitle:
+          "I've got a few quick questions that'll make your journey much better.",
+      content: const SizedBox(height: 16),
+      actionText: "Let's do it →",
+      onAction: _next,
+    );
+  }
 
-    return _StepLayout(
-      title: _isYouTubeMode ? "Learn from YouTube" : "What do you want to learn?",
-      subtitle: _isYouTubeMode
-          ? "Paste any YouTube playlist. SkillTwin maps the creator's authoritative curriculum to your schedule."
-          : "Type any topic, framework, field, or career goal. SkillTwin creates a fully personalized learning path.",
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  // ─────────────────────────────────────────────────────────────
+  // STEP 1: GOAL
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildGoalStep(OnboardingState state) {
+    final currentGoal = state.goal.title;
+    final canProceed = currentGoal.trim().isNotEmpty;
+
+    return _ConversationalStepLayout(
+      mascotAsset: 'assets/mascots/twin_curious.webp',
+      question: 'What do you want to get really good at?',
+      content: Column(
         children: [
-          // Mode Toggle
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(12),
+          ..._popularGoals.map((goal) {
+            final isSelected = currentGoal == goal;
+            return _ConversationalChoice(
+              title: goal,
+              isSelected: isSelected,
+              onTap: () {
+                _customGoalController.text = goal;
+                ref.read(onboardingProvider.notifier).setGoalTitle(goal);
+              },
+            );
+          }),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _customGoalController,
+            textCapitalization: TextCapitalization.sentences,
+            style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Or type your own goal (e.g. Go backend, DevOps)',
+              hintStyle:
+                  const TextStyle(fontSize: 14, color: AppColors.mutedText),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide:
+                    const BorderSide(color: AppColors.secondary, width: 1.8),
+              ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () {
-                      setState(() {
-                        _isYouTubeMode = false;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: !_isYouTubeMode ? Colors.white : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: !_isYouTubeMode
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                )
-                              ]
-                            : null,
-                      ),
-                      child: Center(
-                        child: Text(
-                          "🎯 Goal / Career",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: !_isYouTubeMode
-                                ? FontWeight.bold
-                                : FontWeight.w500,
-                            color: !_isYouTubeMode
-                                ? const Color(0xFF1E293B)
-                                : Colors.grey.shade600,
-                          ),
+            onChanged: (val) {
+              ref.read(onboardingProvider.notifier).setGoalTitle(val);
+            },
+          ),
+        ],
+      ),
+      actionText: 'Continue →',
+      isActionEnabled: canProceed,
+      onAction: _next,
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // STEP 2: LEVEL ("How much do you already know?")
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildLevelStep(OnboardingState state) {
+    final currentLevel = state.goal.currentLevel ?? 'Intermediate';
+
+    return _ConversationalStepLayout(
+      mascotAsset: 'assets/mascots/twin_mentor_thinking.webp',
+      question: 'How much do you already know?',
+      content: Column(
+        children: [
+          ..._standardLevels.map((lvl) {
+            final title = lvl['title']!;
+            final subtitle = lvl['subtitle'];
+            final isSelected = !_isCustomLevel && (currentLevel == title ||
+                (title == 'I know the basics' && currentLevel == 'Know the basics'));
+
+            return _ConversationalChoice(
+              title: title,
+              subtitle: subtitle,
+              isSelected: isSelected,
+              onTap: () {
+                setState(() {
+                  _isCustomLevel = false;
+                  _customLevelError = null;
+                });
+                ref.read(onboardingProvider.notifier).setCurrentLevel(title);
+              },
+            );
+          }),
+          _ConversationalChoice(
+            title: 'Something else',
+            subtitle: 'Share your background so I can calibrate properly',
+            isSelected: _isCustomLevel,
+            onTap: () {
+              setState(() {
+                _isCustomLevel = true;
+              });
+              if (_customLevelController.text.isNotEmpty) {
+                ref
+                    .read(onboardingProvider.notifier)
+                    .setCurrentLevel(_customLevelController.text);
+              }
+            },
+          ),
+          if (_isCustomLevel) ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: _customLevelController,
+              textCapitalization: TextCapitalization.sentences,
+              style:
+                  const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'e.g. 2 years of Java, switching to Flutter',
+                hintStyle:
+                    const TextStyle(fontSize: 14, color: AppColors.mutedText),
+                errorText: _customLevelError,
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide:
+                      const BorderSide(color: AppColors.secondary, width: 1.8),
+                ),
+              ),
+              onChanged: (val) {
+                if (_customLevelError != null && val.trim().isNotEmpty) {
+                  setState(() {
+                    _customLevelError = null;
+                  });
+                }
+                ref.read(onboardingProvider.notifier).setCurrentLevel(val);
+              },
+            ),
+          ],
+        ],
+      ),
+      actionText: 'Continue →',
+      onAction: () {
+        if (_isCustomLevel) {
+          final text = _customLevelController.text.trim();
+          if (text.isEmpty) {
+            setState(() {
+              _customLevelError =
+                  'Please describe your background to continue';
+            });
+            return;
+          }
+          ref.read(onboardingProvider.notifier).setCurrentLevel(text);
+        }
+        _next();
+      },
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // STEP 3: TIME ("How much time can we steal from your day?")
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildDailyTimeStep(OnboardingState state) {
+    final currentMinutes = state.goal.dailyMinutes;
+
+    return _ConversationalStepLayout(
+      mascotAsset: 'assets/mascots/twin_motivation.webp',
+      question: 'How much time can we steal from your day?',
+      content: Column(
+        children: [
+          ..._quickDailyTimes.map((opt) {
+            final minutes = opt['minutes'] as int;
+            final title = opt['title'] as String;
+            final subtitle = opt['subtitle'] as String;
+            final isSelected = !_isCustomTime && currentMinutes == minutes;
+
+            return _ConversationalChoice(
+              title: title,
+              subtitle: subtitle,
+              isSelected: isSelected,
+              onTap: () {
+                setState(() {
+                  _isCustomTime = false;
+                  _customTimeError = null;
+                });
+                ref
+                    .read(onboardingProvider.notifier)
+                    .setDailyMinutes(minutes);
+              },
+            );
+          }),
+          _ConversationalChoice(
+            title: 'Custom',
+            subtitle: 'Enter a custom study duration for your schedule',
+            isSelected: _isCustomTime,
+            onTap: () {
+              setState(() {
+                _isCustomTime = true;
+              });
+            },
+          ),
+          if (_isCustomTime) ...[
+            const SizedBox(height: 12),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.secondary.withValues(alpha: 0.06),
+                    AppColors.secondary.withValues(alpha: 0.02),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _customTimeError != null
+                      ? AppColors.error.withValues(alpha: 0.6)
+                      : AppColors.secondary.withValues(alpha: 0.25),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.secondary.withValues(alpha: 0.06),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Top: Icon + Live Minutes Display ──
+                  Row(
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: (_customTimeError != null
+                                  ? AppColors.error
+                                  : AppColors.secondary)
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.timer_outlined,
+                          size: 24,
+                          color: _customTimeError != null
+                              ? AppColors.error
+                              : AppColors.secondary,
                         ),
                       ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () {
-                      setState(() {
-                        _isYouTubeMode = true;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _isYouTubeMode ? Colors.white : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: _isYouTubeMode
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                )
-                              ]
-                            : null,
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.play_circle_fill,
-                              color: Color(0xFFFF0000),
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              "YouTube Playlist",
+                            const Text(
+                              'Your daily commitment',
                               style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: _isYouTubeMode
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                color: _isYouTubeMode
-                                    ? const Color(0xFFFF0000)
-                                    : Colors.grey.shade600,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.mutedText,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${state.goal.dailyMinutes} min / day',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: _customTimeError != null
+                                    ? AppColors.error
+                                    : AppColors.secondary,
+                                letterSpacing: -0.5,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
+                      if (_customTimeError == null)
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check_rounded,
+                            size: 16,
+                            color: AppColors.success,
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
 
-          if (!_isYouTubeMode) ...[
-            TextField(
-              controller: _goalController,
-              maxLines: 3,
-              autofocus: true,
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(fontSize: 17, height: 1.4),
-              decoration: InputDecoration(
-                hintText:
-                    "e.g. Master Backend Engineering with Python & FastAPI, or Quantum Computing Fundamentals",
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: Colors.grey.shade200),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: Colors.grey.shade200),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Color(0xFFFF6D00), width: 2),
-                ),
-                contentPadding: const EdgeInsets.all(20),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              "QUICK INSPIRATION",
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                'Full-Stack Web Development',
-                'Cloud Architecture & DevOps',
-                'System Design & Microservices',
-                'Machine Learning & Deep Learning',
-                'Data Structures & Algorithms',
-                'Generative AI Applications',
-              ].map((e) => ActionChip(
-                    label: Text(e),
-                    backgroundColor: _goalController.text == e
-                        ? const Color(0xFFFF6D00).withValues(alpha: 0.12)
-                        : Colors.white,
-                    side: BorderSide(
-                      color: _goalController.text == e
-                          ? const Color(0xFFFF6D00)
-                          : Colors.grey.shade300,
-                    ),
-                    labelStyle: TextStyle(
-                      color: _goalController.text == e
-                          ? const Color(0xFFFF6D00)
-                          : Colors.black87,
-                      fontWeight: _goalController.text == e
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      fontSize: 12.5,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _goalController.text = e;
-                      });
-                    },
-                  )).toList(),
-            ),
-          ] else ...[
-            TextField(
-              controller: _youtubeUrlController,
-              maxLines: 2,
-              autofocus: true,
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(fontSize: 15, height: 1.4),
-              decoration: InputDecoration(
-                hintText: "https://www.youtube.com/playlist?list=PL...",
-                filled: true,
-                fillColor: Colors.white,
-                prefixIcon: const Icon(Icons.link, color: Color(0xFFFF0000)),
-                suffixIcon: hasUrlText
-                    ? Icon(
-                        isUrlValid ? Icons.check_circle : Icons.error,
-                        color: isUrlValid ? Colors.green : Colors.red,
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: hasUrlText
-                        ? (isUrlValid ? Colors.green.shade300 : Colors.red.shade300)
-                        : Colors.grey.shade200,
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: hasUrlText
-                        ? (isUrlValid ? Colors.green.shade300 : Colors.red.shade300)
-                        : Colors.grey.shade200,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: hasUrlText && !isUrlValid
-                        ? Colors.red
-                        : const Color(0xFFFF0000),
-                    width: 2,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.all(18),
-              ),
-            ),
-            if (hasUrlText && !isUrlValid)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0, left: 4),
-                child: Text(
-                  "Please enter a valid YouTube playlist URL containing 'list=PL...'",
-                  style: TextStyle(fontSize: 12, color: Colors.red.shade700),
-                ),
-              ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.verified, color: Color(0xFF0284C7), size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      "Authoritative Creator Sequence: Video order is 100% strictly preserved. Gemini derives topics and schedules.",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blueGrey.shade800,
-                        height: 1.3,
+                  const SizedBox(height: 18),
+
+                  // ── Text Field ──
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _customTimeError != null
+                            ? AppColors.error.withValues(alpha: 0.4)
+                            : AppColors.border,
+                        width: 1.0,
                       ),
                     ),
+                    child: TextField(
+                      controller: _customTimeController,
+                      keyboardType: TextInputType.text,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textPrimary,
+                        height: 1.4,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Type: 45 minutes, 1 hour, 2 hr 30 min...',
+                        hintStyle: TextStyle(
+                          fontSize: 13.5,
+                          color: AppColors.mutedText.withValues(alpha: 0.7),
+                          fontWeight: FontWeight.w400,
+                        ),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 14, right: 10),
+                          child: Icon(
+                            Icons.edit_rounded,
+                            size: 18,
+                            color: _customTimeError != null
+                                ? AppColors.error.withValues(alpha: 0.6)
+                                : AppColors.mutedText,
+                          ),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 0,
+                          minHeight: 0,
+                        ),
+                        isDense: false,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 14,
+                        ),
+                      ),
+                      onChanged: (val) {
+                        final parsed = normalizeDailyMinutes(val);
+                        setState(() {
+                          if (parsed != null) {
+                            _customTimeError = null;
+                            ref
+                                .read(onboardingProvider.notifier)
+                                .setDailyMinutes(parsed);
+                          } else if (val.trim().isNotEmpty) {
+                            _customTimeError =
+                                'Enter a duration like "45 minutes" or "1 hr 30 min" (5–480 mins)';
+                          }
+                        });
+                      },
+                    ),
                   ),
+
+                  const SizedBox(height: 14),
+
+                  // ── Quick Stepper Buttons ──
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTimeAdjustChip(
+                          label: '15 min',
+                          icon: Icons.remove_rounded,
+                          onTap: () {
+                            final newMins =
+                                (state.goal.dailyMinutes - 15).clamp(15, 480);
+                            _customTimeController.text = '$newMins minutes';
+                            ref
+                                .read(onboardingProvider.notifier)
+                                .setDailyMinutes(newMins);
+                            setState(() {
+                              _customTimeError = null;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTimeAdjustChip(
+                          label: '15 min',
+                          icon: Icons.add_rounded,
+                          onTap: () {
+                            final newMins =
+                                (state.goal.dailyMinutes + 15).clamp(15, 480);
+                            _customTimeController.text = '$newMins minutes';
+                            ref
+                                .read(onboardingProvider.notifier)
+                                .setDailyMinutes(newMins);
+                            setState(() {
+                              _customTimeError = null;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (_customTimeError != null) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded,
+                            size: 14, color: AppColors.error),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _customTimeError!,
+                            style: const TextStyle(
+                              color: AppColors.error,
+                              fontSize: 12,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              "POPULAR CURRICULA",
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                {
-                  'title': 'NeetCode 150 DSA',
-                  'url':
-                      'https://www.youtube.com/playlist?list=PLot-Xpze53ldVwtstag2TL4HQhAnC8ATf',
-                },
-                {
-                  'title': 'CS50 Computer Science',
-                  'url':
-                      'https://www.youtube.com/playlist?list=PLhQjrBD2T382_R172L3Up5L04nmLO4vOR',
-                },
-                {
-                  'title': 'FastAPI Mastery',
-                  'url':
-                      'https://www.youtube.com/playlist?list=PL-osiE80TeTs4U992KVXkP-L1q4s5x63A',
-                },
-              ].map((item) {
-                final isSelected = _youtubeUrlController.text == item['url'];
-                return ActionChip(
-                  avatar: const Icon(Icons.playlist_play, size: 16, color: Color(0xFFFF0000)),
-                  label: Text(item['title']!),
-                  backgroundColor: isSelected
-                      ? const Color(0xFFFF0000).withValues(alpha: 0.12)
-                      : Colors.white,
-                  side: BorderSide(
-                    color: isSelected
-                        ? const Color(0xFFFF0000)
-                        : Colors.grey.shade300,
-                  ),
-                  labelStyle: TextStyle(
-                    color: isSelected ? const Color(0xFFFF0000) : Colors.black87,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    fontSize: 12,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _youtubeUrlController.text = item['url']!;
-                    });
-                  },
-                );
-              }).toList(),
-            ),
           ],
         ],
       ),
+      actionText: 'Continue →',
+      onAction: () {
+        if (_isCustomTime) {
+          final parsed =
+              normalizeDailyMinutes(_customTimeController.text.trim());
+          if (parsed == null && _customTimeController.text.trim().isNotEmpty) {
+            setState(() {
+              _customTimeError =
+                  'Please enter a valid time (e.g. "45 minutes", "1 hour", "1 hr 30 min")';
+            });
+            return;
+          }
+          if (parsed != null) {
+            ref.read(onboardingProvider.notifier).setDailyMinutes(parsed);
+          }
+        }
+        _next();
+      },
     );
   }
 
-  Widget _buildStep2() {
-    return _StepLayout(
-      title: "What is your target level?",
-      subtitle:
-          "Choose your target mastery depth so SkillTwin generates the optimal scope.",
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ..._levelOptions.map((level) {
-            final isSelected = _targetLevel == level;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFFFF6D00)
-                      : Colors.grey.shade200,
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
-              child: RadioListTile<String>(
-                title: Text(
-                  level,
-                  style: TextStyle(
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected
-                        ? const Color(0xFFFF6D00)
-                        : Colors.black87,
-                  ),
-                ),
-                subtitle: Text(
-                  _getLevelDescription(level),
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-                value: level,
-                activeColor: const Color(0xFFFF6D00),
-                groupValue: _targetLevel,
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _targetLevel = val);
-                  }
-                },
-              ),
-            );
-          }),
-          if (_targetLevel == 'Other' ||
-              _targetLevel == 'Interview Ready') ...[
-            const SizedBox(height: 12),
-            const Text(
-              "CUSTOM OUTCOME / SPECIFIC TARGET",
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
-                color: Colors.grey,
-              ),
+  Widget _buildTimeAdjustChip({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.secondary.withValues(alpha: 0.22),
+              width: 1.2,
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _customTargetController,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: "e.g. Pass Google Senior L5 system design interview",
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: Colors.grey.shade200),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFFF6D00), width: 2),
-                ),
-                contentPadding: const EdgeInsets.all(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.secondary.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _getLevelDescription(String level) {
-    switch (level) {
-      case 'Beginner':
-        return 'Foundational concepts, syntax, and fundamental workflows';
-      case 'Intermediate':
-        return 'Practical applications, best practices, and core projects';
-      case 'Expert':
-        return 'Advanced architecture, performance optimization, and internals';
-      case 'Interview Ready':
-        return 'High-frequency interview questions, edge cases, and design';
-      case 'Other':
-        return 'Specify a tailored custom target outcome';
-      default:
-        return '';
-    }
-  }
-
-  Widget _buildStep3() {
-    return _StepLayout(
-      title: "Target completion date?",
-      subtitle:
-          "Pacing adjusts dynamically to keep your daily practice realistic and sustainable.",
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: CalendarDatePicker(
-          initialDate: _deadline,
-          firstDate: DateTime.now(),
-          lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-          onDateChanged: (date) => setState(() => _deadline = date),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStep4() {
-    final options = [
-      {'label': '15 mins/day', 'minutes': 15},
-      {'label': '30 mins/day', 'minutes': 30},
-      {'label': '45 mins/day', 'minutes': 45},
-      {'label': '1 hour/day', 'minutes': 60},
-      {'label': '2 hours/day', 'minutes': 120},
-    ];
-
-    return _StepLayout(
-      title: "Daily time commitment?",
-      subtitle:
-          "Short daily sessions produce far higher retention than weekend marathons.",
-      child: Column(
-        children: options.map((opt) {
-          final label = opt['label'] as String;
-          final mins = opt['minutes'] as int;
-          final isSelected = _dailyMinutes == mins;
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected
-                    ? const Color(0xFFFF6D00)
-                    : Colors.grey.shade200,
-                width: isSelected ? 2 : 1,
-              ),
-            ),
-            child: RadioListTile<int>(
-              title: Text(
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: AppColors.secondary),
+              const SizedBox(width: 6),
+              Text(
                 label,
-                style: TextStyle(
-                  fontWeight:
-                      isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected
-                      ? const Color(0xFFFF6D00)
-                      : Colors.black87,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.secondary,
+                  letterSpacing: 0.2,
                 ),
               ),
-              value: mins,
-              groupValue: _dailyMinutes,
-              activeColor: const Color(0xFFFF6D00),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _dailyMinutes = val;
-                    _dailyTime = label;
-                  });
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // STEP 4: DEADLINE ("Got a deadline?")
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildDeadlineStep(OnboardingState state) {
+    final currentDeadline = state.goal.deadline;
+
+    return _ConversationalStepLayout(
+      mascotAsset: 'assets/mascots/twin_journey_roadmap.webp',
+      question: 'Got a deadline?',
+      content: Column(
+        children: [
+          ..._quickDeadlines.map((opt) {
+            final days = opt['days'] as int;
+            final title = opt['title'] as String;
+            final subtitle = opt['subtitle'] as String;
+
+            bool isSelected;
+            if (_isCustomDeadline) {
+              isSelected = false;
+            } else if (days == 0) {
+              isSelected = currentDeadline == null ||
+                  currentDeadline.difference(DateTime.now()).inDays > 300;
+            } else {
+              isSelected = currentDeadline != null &&
+                  (currentDeadline.difference(DateTime.now()).inDays - days)
+                          .abs() <=
+                      3;
+            }
+
+            return _ConversationalChoice(
+              title: title,
+              subtitle: subtitle,
+              isSelected: isSelected,
+              onTap: () {
+                setState(() {
+                  _isCustomDeadline = false;
+                });
+                if (days == 0) {
+                  ref.read(onboardingProvider.notifier).setDeadline(
+                        DateTime.now().add(const Duration(days: 365)),
+                      );
+                } else {
+                  ref.read(onboardingProvider.notifier).setDeadline(
+                        DateTime.now().add(Duration(days: days)),
+                      );
                 }
               },
-            ),
+            );
+          }),
+          _ConversationalChoice(
+            title: _isCustomDeadline && currentDeadline != null
+                ? 'Custom: ${DateFormat.yMMMd().format(currentDeadline)}'
+                : 'Custom date',
+            subtitle: _isCustomDeadline && currentDeadline != null
+                ? '${currentDeadline.difference(DateTime.now()).inDays} days remaining'
+                : 'Pick a specific completion date on the calendar',
+            isSelected: _isCustomDeadline,
+            onTap: () async {
+              final now = DateTime.now();
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: currentDeadline ?? now.add(const Duration(days: 45)),
+                firstDate: now.add(const Duration(days: 1)),
+                lastDate: now.add(const Duration(days: 730)),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(
+                        primary: AppColors.secondary,
+                        onPrimary: Colors.white,
+                        onSurface: AppColors.textPrimary,
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+
+              if (picked != null) {
+                ref.read(onboardingProvider.notifier).setDeadline(picked);
+                setState(() {
+                  _isCustomDeadline = true;
+                });
+              }
+            },
+          ),
+        ],
+      ),
+      actionText: 'Continue →',
+      onAction: _next,
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // STEP 5: LEARNING METHODS ("How do you like learning?")
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildLearningMethodsStep(OnboardingState state) {
+    final selectedResources = state.goal.preferredResources;
+
+    return _ConversationalStepLayout(
+      mascotAsset: 'assets/mascots/twin_coding.webp',
+      question: 'How do you like learning?',
+      content: Column(
+        children: _learningMethods.map((style) {
+          final title = style['title']!;
+          final subtitle = style['subtitle'];
+          final isSelected = selectedResources.contains(title);
+
+          return _ConversationalChoice(
+            title: title,
+            subtitle: subtitle,
+            isSelected: isSelected,
+            isMultiSelect: true,
+            onTap: () {
+              final updated = List<String>.from(selectedResources);
+              if (title == 'Mixed approach') {
+                if (isSelected) {
+                  updated.remove('Mixed approach');
+                } else {
+                  updated.add('Mixed approach');
+                  if (!updated.contains('Practice problems')) {
+                    updated.add('Practice problems');
+                  }
+                  if (!updated.contains('Build projects')) {
+                    updated.add('Build projects');
+                  }
+                }
+              } else {
+                if (isSelected) {
+                  updated.remove(title);
+                } else {
+                  updated.add(title);
+                }
+              }
+              ref
+                  .read(onboardingProvider.notifier)
+                  .setPreferredResources(updated);
+            },
           );
         }).toList(),
       ),
+      actionText: 'Continue →',
+      onAction: _next,
     );
   }
 
-  Widget _buildStep5() {
-    return _StepLayout(
-      title: "Existing knowledge?",
-      subtitle:
-          "List skills you already understand so your curriculum doesn't waste time on basics.",
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _knowledgeController,
-                  decoration: InputDecoration(
-                    hintText: "e.g. Python, SQL, Git, Linux",
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                  ),
-                  onSubmitted: (val) => _addKnowledgeTag(),
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton.filled(
-                style: IconButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF6D00),
-                ),
-                icon: const Icon(Icons.add, color: Colors.white),
-                onPressed: _addKnowledgeTag,
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          if (_knowledgeTags.isNotEmpty)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _knowledgeTags
-                  .map((tag) => Chip(
-                        label: Text(tag),
-                        backgroundColor:
-                            const Color(0xFFFF6D00).withValues(alpha: 0.1),
-                        side: BorderSide.none,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20)),
-                        onDeleted: () =>
-                            setState(() => _knowledgeTags.remove(tag)),
-                      ))
-                  .toList(),
-            )
-          else
-            Text(
-              "No prior knowledge added. We'll start from the absolute ground up.",
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-            ),
-        ],
+  // ─────────────────────────────────────────────────────────────
+  // STEP 6: YOUTUBE / RESOURCE PREFERENCE
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildVideoPreferenceStep(OnboardingState state) {
+    final currentPref = state.videoPreference;
+
+    return _ConversationalStepLayout(
+      mascotAsset: 'assets/mascots/twin_cool.webp',
+      question: 'Want me to bring videos into your learning path?',
+      content: Column(
+        children: _videoPreferences.map((opt) {
+          final title = opt['title']!;
+          final subtitle = opt['subtitle'];
+          final isSelected = currentPref == title;
+
+          return _ConversationalChoice(
+            title: title,
+            subtitle: subtitle,
+            isSelected: isSelected,
+            onTap: () {
+              ref
+                  .read(onboardingProvider.notifier)
+                  .setVideoPreference(title);
+            },
+          );
+        }).toList(),
       ),
+      actionText: 'Continue →',
+      onAction: _next,
     );
   }
 
-  void _addKnowledgeTag() {
-    final text = _knowledgeController.text.trim();
-    if (text.isNotEmpty && !_knowledgeTags.contains(text)) {
-      setState(() {
-        _knowledgeTags.add(text);
-        _knowledgeController.clear();
-      });
-    }
-  }
+  // ─────────────────────────────────────────────────────────────
+  // STEP 7: READY SCREEN
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildReadyStep(OnboardingState state) {
+    final goal = state.goal;
 
-  Widget _buildStep6() {
-    final customTarget = _customTargetController.text.trim();
-
-    return _StepLayout(
-      title: "Ready to generate your path",
+    return _ConversationalStepLayout(
+      mascotAsset: 'assets/mascots/twin_celebrate.webp',
+      question: 'Your journey is ready.',
       subtitle:
-          "Review your goal parameters. Your AI Mentor will build a deep hierarchical curriculum.",
-      child: Container(
-        padding: const EdgeInsets.all(24),
+          "I've tailored your modular milestones, daily pace, and practice sessions.",
+      content: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            _buildSummaryItem(
+              icon: Icons.flag_rounded,
+              label: 'Target Goal',
+              value: goal.title.isEmpty ? 'Custom Roadmap' : goal.title,
+            ),
+            const Divider(height: 22, color: AppColors.borderSubtle),
+            _buildSummaryItem(
+              icon: Icons.timer_outlined,
+              label: 'Daily Pace',
+              value: '${goal.dailyMinutes} min / day',
+            ),
+            const Divider(height: 22, color: AppColors.borderSubtle),
+            _buildSummaryItem(
+              icon: Icons.psychology_outlined,
+              label: 'Starting Level',
+              value: goal.currentLevel ?? 'Intermediate',
+            ),
+            const Divider(height: 22, color: AppColors.borderSubtle),
+            _buildSummaryItem(
+              icon: Icons.ondemand_video_rounded,
+              label: 'Video Focus',
+              value: state.videoPreference,
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildReviewItem("LEARNING GOAL", _goalController.text),
-            const Divider(height: 28),
-            _buildReviewItem("TARGET LEVEL", _targetLevel),
-            if (customTarget.isNotEmpty) ...[
-              const Divider(height: 28),
-              _buildReviewItem("CUSTOM OUTCOME", customTarget),
-            ],
-            const Divider(height: 28),
-            _buildReviewItem(
-                "TARGET DEADLINE", "${_deadline.toLocal()}".split(' ')[0]),
-            const Divider(height: 28),
-            _buildReviewItem("DAILY PACE", "$_dailyMinutes minutes daily"),
-            if (_knowledgeTags.isNotEmpty) ...[
-              const Divider(height: 28),
-              _buildReviewItem(
-                  "PRIOR KNOWLEDGE", _knowledgeTags.join(', ')),
-            ],
-          ],
-        ),
       ),
+      actionText: 'Start My Journey →',
+      onAction: _submit,
     );
   }
 
-  Widget _buildReviewItem(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSummaryItem({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
       children: [
+        Icon(icon, size: 18, color: AppColors.secondary),
+        const SizedBox(width: 10),
         Text(
           label,
           style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.8,
-            color: Colors.grey,
+            fontSize: 13,
+            color: AppColors.textSecondary,
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF212121),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ],
     );
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // LOADING VIEW
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SkillTwinBackground(
+        child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  'assets/mascots/skilltwin_mascot_loading.gif',
+                  width: 140,
+                  height: 140,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      'assets/mascots/twin_mentor.webp',
+                      width: 140,
+                      height: 140,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.psychology_rounded,
+                        size: 80,
+                        color: AppColors.secondary,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  "I'm putting your journey together...",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Structuring modular milestones, spaced retrieval practice, and daily actions.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
 }
 
-class _StepLayout extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Widget child;
+/// Unified clean vertical layout:
+///   [Breathing space]
+///   [Central dominant mascot]
+///   [Conversational question in readable semi-bold typography]
+///   [Answer / action area]
+///
+/// Strips away excessive wrappers, heavy containers, decorative gradients,
+/// and cluttered secondary badges.
+class _ConversationalStepLayout extends StatelessWidget {
+  final String mascotAsset;
+  final String question;
+  final String? subtitle;
+  final Widget content;
+  final String actionText;
+  final VoidCallback onAction;
+  final bool isActionEnabled;
 
-  const _StepLayout({
-    required this.title,
-    required this.subtitle,
-    required this.child,
+  const _ConversationalStepLayout({
+    required this.mascotAsset,
+    required this.question,
+    this.subtitle,
+    required this.content,
+    required this.actionText,
+    required this.onAction,
+    this.isActionEnabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
-                      color: const Color(0xFF212121),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final mascotSize = (constraints.maxHeight * 0.17).clamp(90.0, 130.0);
+
+        return Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 4),
+                    // Centered prominent mascot with zero artificial box/panel behind it
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: Image.asset(
+                        mascotAsset,
+                        key: ValueKey<String>(mascotAsset),
+                        height: mascotSize,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          final fallbackPath = mascotAsset.replaceFirst(
+                            'assets/mascots/',
+                            'assets/images/mascot/',
+                          );
+                          return Image.asset(
+                            fallbackPath,
+                            key: ValueKey<String>(fallbackPath),
+                            height: mascotSize,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.psychology_alt_rounded,
+                              size: 72,
+                              color: AppColors.secondary,
+                            ),
+                          );
+                        },
+                      ),
                     ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                  height: 1.4,
+
+                    const SizedBox(height: 14),
+
+                    // Conversational single question
+                    Text(
+                      question,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.3,
+                        height: 1.3,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.textSecondary,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 14),
+
+                    // Answer / action selection area
+                    content,
+
+                    const SizedBox(height: 12),
+                  ],
                 ),
               ),
-              const SizedBox(height: 32),
-              child,
-            ],
+            ),
+
+            // Bottom action affordance
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: isActionEnabled ? onAction : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppColors.border,
+                    disabledForegroundColor: AppColors.mutedText,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    actionText,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Clean conversational choice tile for answers
+class _ConversationalChoice extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final bool isSelected;
+  final bool isMultiSelect;
+  final VoidCallback onTap;
+
+  const _ConversationalChoice({
+    required this.title,
+    this.subtitle,
+    required this.isSelected,
+    this.isMultiSelect = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.secondary.withValues(alpha: 0.06)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppColors.secondary : AppColors.border,
+            width: isSelected ? 1.6 : 1.0,
           ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected
+                          ? AppColors.secondary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: isMultiSelect ? BoxShape.rectangle : BoxShape.circle,
+                borderRadius: isMultiSelect ? BorderRadius.circular(6) : null,
+                color: isSelected ? AppColors.secondary : Colors.transparent,
+                border: Border.all(
+                  color: isSelected ? AppColors.secondary : AppColors.border,
+                  width: 1.4,
+                ),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 13, color: Colors.white)
+                  : null,
+            ),
+          ],
         ),
       ),
     );

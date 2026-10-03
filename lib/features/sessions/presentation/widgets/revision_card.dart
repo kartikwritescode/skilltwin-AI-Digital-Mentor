@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/models/revision_item.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
 
@@ -25,33 +26,34 @@ class RevisionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header: Concept name + Retention Risk Badge
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.start,
+            spacing: 8,
+            runSpacing: 6,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CONCEPT',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                        color: Colors.grey.shade600,
-                        fontSize: 10,
-                      ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'CONCEPT',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                      color: Colors.grey.shade600,
+                      fontSize: 10,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
               _RiskBadge(risk: item.risk, color: riskColor),
             ],
@@ -60,39 +62,59 @@ class RevisionCard extends StatelessWidget {
 
           // Metadata row: Last reviewed & Estimated duration
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Colors.grey.shade200),
             ),
-            child: Row(
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
               children: [
-                const Icon(Icons.history, size: 16, color: Colors.black54),
-                const SizedBox(width: 8),
-                Text(
-                  'Last reviewed: ',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.history, size: 15, color: Colors.black54),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Last reviewed: ',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black54,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   item.lastReviewedFormatted,
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
+                    fontSize: 11.5,
                   ),
                 ),
-                const Spacer(),
-                const Icon(Icons.timer_outlined, size: 16, color: Colors.black54),
-                const SizedBox(width: 6),
-                Text(
-                  '${item.estimatedMinutes}m',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.timer_outlined, size: 15, color: Colors.black54),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${item.estimatedMinutes}m',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -112,14 +134,14 @@ class RevisionCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.psychology, color: Colors.deepOrange, size: 16),
+                    const Icon(Icons.psychology, color: AppTheme.primaryAccent, size: 16),
                     const SizedBox(width: 6),
                     Text(
                       'WHY TODAY',
                       style: theme.textTheme.labelSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.0,
-                        color: Colors.deepOrange,
+                        color: AppTheme.primary,
                         fontSize: 10,
                       ),
                     ),
@@ -149,7 +171,7 @@ class RevisionCard extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.9, fontSize: 13),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isPrimary ? Colors.deepOrange : Colors.orange,
+              backgroundColor: isPrimary ? AppTheme.primary : AppTheme.primaryAccent,
               foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(48),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -200,13 +222,17 @@ class _RiskBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            '${risk.name.toUpperCase()} RETENTION RISK',
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
+          Flexible(
+            child: Text(
+              '${risk.name.toUpperCase()} RETENTION RISK',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
         ],

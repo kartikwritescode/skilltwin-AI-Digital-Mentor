@@ -45,4 +45,13 @@ class JourneyRepositoryImpl implements JourneyRepository {
       return null;
     }
   }
+
+  @override
+  Future<void> prewarmNodeExpansion(String pathId, String nodeId) async {
+    try {
+      await _apiClient.post('/adaptive-paths/$pathId/nodes/$nodeId/expand');
+    } catch (_) {
+      // Fire-and-forget pre-warm
+    }
+  }
 }

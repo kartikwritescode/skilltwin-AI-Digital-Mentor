@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/models/learning_session.dart';
 import '../../../../core/models/session_step.dart';
 import '../providers/session_state_provider.dart';
@@ -88,7 +89,7 @@ class SessionContentScreen extends ConsumerWidget {
       child: ElevatedButton(
         onPressed: state.isSubmitting ? null : () => notifier.nextStep(),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.orange,
+          backgroundColor: AppTheme.primaryAccent,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

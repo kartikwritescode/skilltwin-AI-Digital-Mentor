@@ -4,10 +4,15 @@ import '../../../../core/models/evidence.dart';
 import '../../../../core/models/twin_dashboard.dart';
 
 class MockTwinRepository implements TwinRepository {
+  TwinDashboardData? _cachedData;
+
+  @override
+  TwinDashboardData? getCachedTwinDashboard() => _cachedData;
+
   @override
   Future<TwinDashboardData> getTwinDashboard() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return const TwinDashboardData(
+    const data = TwinDashboardData(
       userId: 'mock-user',
       hasSufficientData: true,
       overallMastery: 0.68,
@@ -29,6 +34,8 @@ class MockTwinRepository implements TwinRepository {
         "Focus on spaced retrieval for probability before proceeding.",
       ],
     );
+    _cachedData = data;
+    return data;
   }
 
   @override

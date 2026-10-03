@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../app/theme/app_theme.dart';
+import '../../../../core/widgets/skilltwin_loading_view.dart';
+import '../../../../core/widgets/skilltwin_background.dart';
+import '../../../../core/widgets/skilltwin_twin.dart';
 import '../providers/knowledge_maintenance_provider.dart';
 import '../../../../core/models/knowledge_maintenance_item.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
@@ -13,8 +17,9 @@ class KnowledgeMaintenanceScreen extends ConsumerWidget {
     final maintenanceState = ref.watch(knowledgeMaintenanceProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
-      body: CustomScrollView(
+      backgroundColor: Colors.transparent,
+      body: SkillTwinBackground(
+        child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           _buildAppBar(context),
@@ -37,7 +42,11 @@ class KnowledgeMaintenanceScreen extends ConsumerWidget {
               );
             },
             loading: () => const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
+              hasScrollBody: false,
+              child: SkillTwinLoadingView(
+                message: 'SkillTwin is preparing your next step.',
+                subMessage: 'Auditing memory decay and neural connections...',
+              ),
             ),
             error: (err, _) => SliverFillRemaining(
               child: Center(child: Text('Error: $err')),
@@ -45,8 +54,9 @@ class KnowledgeMaintenanceScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
@@ -75,10 +85,10 @@ class KnowledgeMaintenanceScreen extends ConsumerWidget {
 
   Widget _buildIntroHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -86,34 +96,27 @@ class KnowledgeMaintenanceScreen extends ConsumerWidget {
             offset: const Offset(0, 10),
           ),
         ],
-        border: Border.all(color: Colors.orange.withOpacity(0.1)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.auto_fix_high, color: Colors.orange, size: 24),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
+              SkillTwinTwin(asset: TwinAsset.focused, size: 40),
+              SizedBox(width: 14),
+              Expanded(
                 child: Text(
                   'Personalized Intervention',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: -0.5),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: -0.5, color: AppTheme.textPrimary),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           const Text(
             'Your mentor has identified concepts that need targeted repair or reinforcement based on your recent activity and retention risk.',
-            style: TextStyle(color: Colors.black54, height: 1.5, fontSize: 14),
+            style: TextStyle(color: AppTheme.textSecondary, height: 1.5, fontSize: 14),
           ),
         ],
       ),
@@ -187,15 +190,15 @@ class _MaintenanceSection extends StatelessWidget {
   _StatusConfig _getStatusConfig(MaintenanceStatus status) {
     switch (status) {
       case MaintenanceStatus.keep:
-        return _StatusConfig(color: Colors.green.shade600, icon: Icons.verified_user_outlined);
+        return _StatusConfig(color: AppTheme.positive, icon: Icons.verified_user_outlined);
       case MaintenanceStatus.revise:
-        return _StatusConfig(color: Colors.orange.shade700, icon: Icons.history_rounded);
+        return _StatusConfig(color: AppTheme.primaryAccent, icon: Icons.history_rounded);
       case MaintenanceStatus.fix:
         return _StatusConfig(color: Colors.redAccent.shade700, icon: Icons.build_circle_outlined);
       case MaintenanceStatus.learnNext:
-        return _StatusConfig(color: Colors.blue.shade600, icon: Icons.rocket_launch_outlined);
+        return _StatusConfig(color: AppTheme.accentBlue, icon: Icons.rocket_launch_outlined);
       case MaintenanceStatus.deprioritize:
-        return _StatusConfig(color: Colors.grey.shade600, icon: Icons.low_priority_rounded);
+        return _StatusConfig(color: AppTheme.textMuted, icon: Icons.low_priority_rounded);
     }
   }
 }
@@ -226,54 +229,56 @@ class _MaintenanceCard extends StatelessWidget {
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
+                      fontSize: 18,
                     ),
                   ),
                 ),
-                Icon(icon, color: statusColor.withOpacity(0.2), size: 28),
+                Icon(icon, color: statusColor.withOpacity(0.3), size: 24),
               ],
             ),
             const SizedBox(height: 12),
             Text(
               item.reason,
               style: theme.textTheme.bodyLarge?.copyWith(
-                color: Colors.black87,
+                color: AppTheme.textSecondary,
                 height: 1.5,
+                fontSize: 14,
                 fontWeight: FontWeight.w400,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.04),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.orange.withOpacity(0.1)),
+                color: AppTheme.primaryAccent.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.primaryAccent.withOpacity(0.12)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
-                      const Icon(Icons.assistant, color: Colors.orange, size: 20),
-                      const SizedBox(width: 12),
+                      SkillTwinTwin(asset: TwinAsset.thinking, size: 22),
+                      SizedBox(width: 10),
                       Text(
                         'MENTOR GUIDANCE',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
+                          color: AppTheme.primary,
                           letterSpacing: 1.0,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Text(
                     item.mentorRecommendation,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       height: 1.5,
-                      color: Colors.black54,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                 ],
