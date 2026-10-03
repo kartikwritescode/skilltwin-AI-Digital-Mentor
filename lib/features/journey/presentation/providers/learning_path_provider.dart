@@ -159,7 +159,8 @@ class TopicActionNotifier extends StateNotifier<AsyncValue<void>> {
     try {
       final res = await _repo.startTopic(topicId);
       state = const AsyncValue.data(null);
-      // Keep Home screen in lockstep
+      // Keep Home screen and today's session state in lockstep
+      _ref.read(todayTaskStateProvider.notifier).markStarted(topicId: topicId);
       _ref.invalidate(homeDashboardProvider);
       return res;
     } catch (e, st) {
@@ -179,15 +180,24 @@ class TopicActionNotifier extends StateNotifier<AsyncValue<void>> {
         .read(topicDetailProvider(topicId).notifier)
         .updateStatusOptimistically('completed', 1.0);
 
+    final currentDetail = _ref.read(topicDetailProvider(topicId)).asData?.value;
+    final topicTitle = currentDetail?.title;
+
     state = const AsyncValue.loading();
     try {
       final res = await _repo.completeTopic(topicId);
       state = const AsyncValue.data(null);
-      // Keep Home screen in lockstep
-      _ref.invalidate(homeDashboardProvider);
+      // Propagate confirmed completion to single source of truth
+      await _ref.read(todayTaskStateProvider.notifier).recordCompletion(
+            topicId: topicId,
+            topicTitle: topicTitle,
+            completedAt: res.completedAt,
+          );
       return res;
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+      // Rollback on API failure - no false completion
+      _ref.read(todayTaskStateProvider.notifier).recordFailure(e.toString());
       _ref.read(topicDetailProvider(topicId).notifier).load();
       _ref.read(activeLearningPathProvider.notifier).load();
       return null;
@@ -237,10 +247,17 @@ class TopicActionNotifier extends StateNotifier<AsyncValue<void>> {
 
   Future<ContextualAskResponse?> askQuestion(
     String topicId,
-    String query,
-  ) async {
+    String query, {
+    TopicQuestionItem? currentQuestion,
+    String? selectedAnswer,
+  }) async {
     try {
-      return await _repo.askTopicQuestion(topicId, query);
+      return await _repo.askTopicQuestion(
+        topicId,
+        query,
+        currentQuestion: currentQuestion,
+        selectedAnswer: selectedAnswer,
+      );
     } catch (e) {
       rethrow;
     }

@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../home/presentation/providers/home_provider.dart';
+import '../../../home/presentation/providers/today_task_provider.dart';
+import '../../../home/data/repositories/goal_repository_provider.dart';
 import '../../../journey/presentation/providers/learning_path_provider.dart';
 import '../../data/repositories/profile_repository_provider.dart';
 import '../../../../core/models/goal.dart';
@@ -12,7 +14,11 @@ import '../../../../core/models/learning_path.dart';
 import '../../../../core/models/user.dart';
 import '../../../../core/utils/mastery_format.dart';
 import '../../../../app/theme/app_theme.dart';
+import '../../../../core/widgets/skilltwin_loading_view.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
+import '../../../../core/widgets/skilltwin_background.dart';
+import '../../../streak/presentation/widgets/streak_widgets.dart';
+
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -43,6 +49,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final allGoalsAsync = ref.watch(allGoalsProvider);
     final dashboardAsync = ref.watch(homeDashboardProvider);
     final learningPathAsync = ref.watch(learningPathProvider);
+    // Reactive subscription to today's task & completed sessions
+    ref.watch(todayTaskStateProvider);
 
     final screenSize = MediaQuery.sizeOf(context);
     final isCompact = screenSize.width < 360;
@@ -54,85 +62,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final email = user?.email ?? 'learner@skilltwin.ai';
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
           'Learner Profile',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+          style: AppTypography.headline,
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
-            onPressed: () {
-              ref.invalidate(activeGoalProvider);
-              ref.invalidate(allGoalsProvider);
-              ref.invalidate(homeDashboardProvider);
-              ref.invalidate(learningPathProvider);
-            },
-          ),
-        ],
       ),
-      body: Center(
-        child: ConstrainedBox(
+      body: SkillTwinBackground(
+        child: Center(
+          child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: ListView(
-            padding: EdgeInsets.symmetric(
-              horizontal: isCompact ? 16 : 20,
-              vertical: 12,
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: ClampingScrollPhysics(),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              isCompact ? 16 : 20,
+              12,
+              isCompact ? 16 : 20,
+              10
             ),
             children: [
-              // ── 1. Personalized Header Card (with prominent Edit) ──
+              // ── 1. Who I am: Personalized Header Card ──
               _buildHeaderCard(context, user, displayName, initial, email),
               const SizedBox(height: 20),
 
-              // ── 2. Interactive Stunning Calendar & Streak UI ──
-              _buildSectionHeader('Learning Rhythm & Streak'),
-              _buildStreakCalendarSection(context, dashboardAsync, learningPathAsync),
-              const SizedBox(height: 24),
-
-              // ── 3. Active Goal & Progress Tracking ──
-              _buildSectionHeader('Current Focus & Track'),
+              // ── 2. How I'm learning: Current Focus & Track ──
+              _buildSectionHeader('How I\'m Learning'),
               activeGoalAsync.when(
                 data: (goal) => _buildActiveGoalCard(context, goal),
-                loading: () => const SkillTwinCard(
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  ),
+                loading: () => const SkillTwinLoadingView.compact(
+                  message: 'SkillTwin is preparing your next step.',
+                  subMessage: 'Retrieving your active goal...',
                 ),
                 error: (_, __) => _buildEmptyGoalCard(context),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              // ── 4. Non-Active Goals & History ──
-              _buildSectionHeader('Other Learning Goals'),
+              // ── 2b. Other Saved Goals & History ──
+              _buildSectionHeader('Other Saved Goals'),
               allGoalsAsync.when(
                 data: (goals) {
+                  if (goals == null) return const SizedBox.shrink();
                   final activeGoal = activeGoalAsync.valueOrNull;
                   final inactiveGoals = goals
                       .where((g) => g.id != activeGoal?.id)
                       .toList();
                   return _buildInactiveGoalsSection(context, inactiveGoals);
                 },
-                loading: () => const SkillTwinCard(
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  ),
-                ),
+                loading: () => const SizedBox.shrink(),
                 error: (_, __) => const SizedBox.shrink(),
               ),
               const SizedBox(height: 24),
 
-              // ── 5. Learning Preferences ──
-              _buildSectionHeader('Preferences'),
+                // ── 3. What I've achieved: Milestones & Mastery ──
+                _buildSectionHeader('What I\'ve Achieved'),
+                _buildAchievementsCard(context, dashboardAsync, learningPathAsync, user),
+                const SizedBox(height: 24),
+
+                // ── 4. My consistency: Interactive Streak & Calendar UI ──
+                _buildSectionHeader('My Consistency & Rhythm'),
+                _buildStreakCalendarSection(context, dashboardAsync, learningPathAsync),
+                const SizedBox(height: 24),
+
+                // ── 5. Learning Preferences ──
+                _buildSectionHeader('Preferences'),
               SkillTwinCard(
                 padding: EdgeInsets.zero,
                 child: Column(
@@ -169,26 +166,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _buildSectionHeader('Account'),
               SkillTwinCard(
                 padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    _buildSettingsTile(
-                      icon: Icons.shield_outlined,
-                      title: 'Security & Supabase Auth',
-                      subtitle: 'Protected with encrypted session token',
-                      trailing: const Icon(Icons.check_circle, size: 16, color: Colors.green),
-                      onTap: () {},
-                    ),
-                    Divider(height: 1, color: Colors.grey.shade200),
-                    _buildSettingsTile(
-                      icon: Icons.logout_rounded,
-                      title: 'Log Out of SkillTwin',
-                      subtitle: 'Safely sign out of this device',
-                      titleColor: Colors.red.shade600,
-                      iconColor: Colors.red.shade600,
-                      trailing: Icon(Icons.arrow_forward_ios_rounded, size: 13, color: Colors.red.shade400),
-                      onTap: () => _confirmLogout(context),
-                    ),
-                  ],
+                child: _buildSettingsTile(
+                  icon: Icons.logout_rounded,
+                  title: 'Log Out of SkillTwin',
+                  subtitle: 'Safely sign out of this device',
+                  titleColor: Colors.red.shade600,
+                  iconColor: Colors.red.shade600,
+                  trailing: Icon(Icons.arrow_forward_ios_rounded, size: 13, color: Colors.red.shade400),
+                  onTap: () => _confirmLogout(context),
                 ),
               ),
               const SizedBox(height: 32),
@@ -207,22 +192,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Adaptive Cognitive Multi-Agent Architecture',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary.withValues(alpha: 0.4),
-                        fontSize: 11,
+                      'Personalized AI Learning Companion',
+                      style: AppTypography.supporting.copyWith(
+                        color: AppColors.mutedText,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: AppSpacing.calculateBottomNavInset(context)),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 1. Personalized Header Card
@@ -235,101 +220,161 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     String email,
   ) {
     return SkillTwinCard(
-      padding: const EdgeInsets.all(20),
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar
-          Container(
-            width: 66,
-            height: 66,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppTheme.primaryAccent, Color(0xFFFF8F00)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryAccent.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+          Row(
+            children: [
+              // Avatar
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppTheme.primaryAccent, Color(0xFF38BDF8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryAccent.withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Name & Email
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              const SizedBox(width: 12),
+              // Name & Email
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        displayName,
-                        style: const TextStyle(
-                          fontSize: 20,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            displayName,
+                            style: const TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryAccent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'LEARNER',
+                            style: TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.primaryAccent,
+                              letterSpacing: 0.7,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      email,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppTheme.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Edit Action Button
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.textPrimary),
+                  tooltip: 'Edit Name & Details',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _editPersonalInfo(context, user),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Digital Companion greeting banner
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryAccent.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.primaryAccent.withValues(alpha: 0.12)),
+            ),
+            child: Row(
+              children: [
+                Image.asset(
+                  'assets/mascots/twin_home.webp',
+                  width: 38,
+                  height: 38,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.psychology_rounded,
+                    color: AppTheme.primaryAccent,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'SkillTwin Companion',
+                        style: TextStyle(
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w800,
+                          color: AppTheme.primaryAccent,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'Ready to keep your momentum going today?',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                           color: AppTheme.textPrimary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryAccent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Text(
-                        'LEARNER',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.primaryAccent,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  email,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.textSecondary,
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
-            ),
-          ),
-          // Prominent Edit Action Button
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 19, color: AppTheme.textPrimary),
-              tooltip: 'Edit Name & Details',
-              onPressed: () => _editPersonalInfo(context, user),
             ),
           ),
         ],
@@ -348,8 +393,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final streakDays = dashboardAsync.valueOrNull?.streakDays ?? 0;
     final learningPath = learningPathAsync.valueOrNull;
 
-    // Collect all topics
-    final allTopics = learningPath?.sections.expand((s) => s.topics).toList() ?? [];
+    // Collect all topics - with null safety
+    final allTopics = learningPath?.sections
+        .where((s) => s.topics != null)
+        .expand((s) => s.topics)
+        .where((t) => t != null)
+        .toList() ?? [];
 
     // Build 14-day calendar window: 10 days before today to 3 days after today
     final now = DateTime.now();
@@ -358,9 +407,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return today.subtract(Duration(days: 9 - index));
     });
 
-    // Filter topics completed on _selectedDate
+    // Filter topics completed on _selectedDate - with null safety
     final topicsOnSelectedDate = allTopics.where((t) {
-      if (t.completedAt == null) return false;
+      if (t == null || t.completedAt == null) return false;
       return _isSameDay(t.completedAt!, _selectedDate);
     }).toList();
 
@@ -370,88 +419,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Streak Banner ──
-        SkillTwinCard(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF6D00), Color(0xFFFF9100)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFF6D00).withValues(alpha: 0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.local_fire_department_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          streakDays == 1 ? '1 Day Streak' : '$streakDays Days Streak',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: (streakDays > 0 ? Colors.green : Colors.grey).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            streakDays > 0 ? 'ACTIVE 🔥' : 'START TODAY',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: streakDays > 0 ? Colors.green.shade700 : Colors.grey.shade600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      streakDays > 0
-                          ? 'Consistent daily habit drives 10x deeper retention.'
-                          : 'Complete today\'s study topic to ignite your streak.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        // ── Surfaced Learning Momentum & Streak ──
+        if (dashboardAsync.valueOrNull != null)
+          StreakSection(
+            dashboardData: dashboardAsync.valueOrNull!,
+            onStartToday: () => context.push('/journey'),
+          )
+        else
+          HeroStreakCard(
+            streakDays: streakDays,
           ),
-        ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
+
 
         // ── Interactive Horizontal Day Strip ──
         SkillTwinCard(
@@ -464,12 +443,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      DateFormat('MMMM yyyy').format(_selectedDate),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
+                    Flexible(
+                      child: Text(
+                        DateFormat('MMMM yyyy').format(_selectedDate),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimary,
+                        ),
                       ),
                     ),
                     InkWell(
@@ -507,9 +490,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     final isSelected = _isSameDay(date, _selectedDate);
                     final isDateToday = _isSameDay(date, today);
 
-                    // Check if this date has any completed topics
+                    // Check if this date has any completed topics - with null safety
                     final hasCompletedTopic = allTopics.any((t) =>
-                        t.completedAt != null && _isSameDay(t.completedAt!, date));
+                        t != null && t.completedAt != null && _isSameDay(t.completedAt!, date));
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 3.5),
@@ -625,12 +608,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 color: AppTheme.primaryAccent,
               ),
               const SizedBox(width: 8),
-              Text(
-                'Topics Aligned • $dateLabel',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
+              Expanded(
+                child: Text(
+                  'Topics Aligned • $dateLabel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -684,12 +671,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                '•  Mastery ${topic.masteryScore.toMasteryPercentage}%',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.textSecondary,
-                                  fontWeight: FontWeight.w500,
+                              Flexible(
+                                child: Text(
+                                  '•  Mastery ${topic.masteryScore.toMasteryPercentage}%',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -711,10 +702,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Builder(
               builder: (context) {
                 final dashboard = dashboardAsync.valueOrNull;
-                final allTopicsList = learningPath?.sections.expand((s) => s.topics).toList() ?? [];
+                // Get all topics with null safety
+                final allTopicsList = learningPath?.sections
+                    .where((s) => s.topics != null)
+                    .expand((s) => s.topics)
+                    .where((t) => t != null)
+                    .toList() ?? [];
                 LearningTopic? firstPendingTopic;
                 for (final t in allTopicsList) {
-                  if (t.status != TopicStatus.completed) {
+                  if (t != null && t.status != TopicStatus.completed) {
                     firstPendingTopic = t;
                     break;
                   }
@@ -746,13 +742,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             child: const Icon(Icons.bolt_rounded, size: 16, color: AppTheme.primaryAccent),
                           ),
                           const SizedBox(width: 10),
-                          const Text(
-                            'TODAY\'S TARGET TOPIC',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.primaryAccent,
-                              letterSpacing: 0.7,
+                          const Flexible(
+                            child: Text(
+                              'TODAY\'S TARGET TOPIC',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.primaryAccent,
+                                letterSpacing: 0.7,
+                              ),
                             ),
                           ),
                         ],
@@ -779,8 +779,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                          label: const Text('Start / Continue Today\'s Topic', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          style: ElevatedButton.styleFrom(
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Start / Continue Today\'s Topic', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ),  style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryAccent,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -848,7 +850,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 3. Current Active Goal Card & Progress Tracking
+  // 2. Current Active Goal Card & Progress Tracking (How I'm Learning)
   // ─────────────────────────────────────────────────────────────────────────────
   Widget _buildActiveGoalCard(BuildContext context, Goal? goal) {
     if (goal == null) {
@@ -860,7 +862,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         : null;
 
     return SkillTwinCard(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -876,15 +878,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: const Icon(
                   Icons.flag_rounded,
                   color: AppTheme.primaryAccent,
-                  size: 24,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -895,18 +900,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           child: const Text(
                             'ACTIVE GOAL',
                             style: TextStyle(
-                              fontSize: 9.5,
+                              fontSize: 9.0,
                               fontWeight: FontWeight.w800,
                               color: Colors.green,
                               letterSpacing: 0.6,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Text(
                           goal.targetLevel ?? 'Intermediate',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.textSecondary,
                           ),
@@ -918,17 +922,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       goal.title,
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
-                        fontSize: 17,
+                        fontSize: 16.5,
                         color: AppTheme.textPrimary,
                         letterSpacing: -0.2,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (goal.description != null && goal.description!.isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Text(
                         goal.description!,
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 12,
                           color: AppTheme.textSecondary,
                         ),
                         maxLines: 2,
@@ -965,7 +971,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     child: Row(
                       children: [
                         Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red.shade600),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                         Text('Delete Goal', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red.shade600)),
                       ],
                     ),
@@ -974,7 +980,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
 
           // Progress Bar
           ClipRRect(
@@ -986,66 +992,91 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               minHeight: 7,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 '${goal.progressPercent.toInt()}% Completed',
                 style: const TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   color: AppTheme.primaryAccent,
                 ),
               ),
               if (goal.deadline != null)
-                Text(
-                  daysLeft != null && daysLeft > 0
-                      ? '🎯 Target: ${DateFormat('MMM d, yyyy').format(goal.deadline!)} ($daysLeft days left)'
-                      : '🎯 Target: ${DateFormat('MMM d, yyyy').format(goal.deadline!)}',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: AppTheme.textSecondary,
-                    fontWeight: FontWeight.w500,
+                Flexible(
+                  child: Text(
+                    daysLeft != null && daysLeft > 0
+                        ? '🎯 Target: ${DateFormat('MMM d').format(goal.deadline!)} ($daysLeft d)'
+                        : '🎯 Target: ${DateFormat('MMM d').format(goal.deadline!)}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
                   ),
                 ),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Bottom Action Row
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text('Edit Goal'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.textPrimary,
-                    side: BorderSide(color: Colors.grey.shade300),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                  ),
-                  onPressed: () => _editGoal(context, goal),
+          // Bottom Action Row - Responsive Stacking on compact widths
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isStacked = constraints.maxWidth < 310;
+              final editBtn = OutlinedButton.icon(
+                icon: const Icon(Icons.edit_outlined, size: 15),
+                label: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('Edit Goal'),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.map_outlined, size: 16),
-                  label: const Text('Open Journey Roadmap'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryAccent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                    elevation: 0,
-                  ),
-                  onPressed: () => context.go('/journey'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.textPrimary,
+                  side: BorderSide(color: Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                 ),
-              ),
-            ],
+                onPressed: () => _editGoal(context, goal),
+              );
+
+              final journeyBtn = ElevatedButton.icon(
+                icon: const Icon(Icons.map_outlined, size: 15),
+                label: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('Open Journey Roadmap'),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryAccent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  elevation: 0,
+                ),
+                onPressed: () => context.go('/journey'),
+              );
+
+              if (isStacked) {
+                return Column(
+                  children: [
+                    SizedBox(width: double.infinity, child: journeyBtn),
+                    const SizedBox(height: 8),
+                    SizedBox(width: double.infinity, child: editBtn),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(flex: 2, child: editBtn),
+                  const SizedBox(width: 10),
+                  Expanded(flex: 3, child: journeyBtn),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1054,23 +1085,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildEmptyGoalCard(BuildContext context) {
     return SkillTwinCard(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(18),
       onTap: () => context.push('/onboarding'),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryAccent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.flag_rounded,
-              color: AppTheme.primaryAccent,
-              size: 24,
+          Image.asset(
+            'assets/mascots/twin_rest.webp',
+            width: 44,
+            height: 44,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.flag_rounded,
+                color: AppTheme.primaryAccent,
+                size: 24,
+              ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1079,43 +1116,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   'No Active Goal Set',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 16,
+                    fontSize: 15,
                     color: AppTheme.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
-                  'Set a personalized learning goal to generate your adaptive curriculum.',
+                  'Set a goal to generate your adaptive curriculum.',
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 11.5,
                     color: AppTheme.textSecondary,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           ElevatedButton(
             onPressed: () => context.push('/onboarding'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryAccent,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
-            child: const Text('Set Goal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            child: const Text('Set Goal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
           ),
         ],
       ),
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 4. Non-Active Goals Section
-  // ─────────────────────────────────────────────────────────────────────────────
   Widget _buildInactiveGoalsSection(BuildContext context, List<Goal> inactiveGoals) {
     if (inactiveGoals.isEmpty) {
       return SkillTwinCard(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Icon(Icons.inventory_2_outlined, size: 22, color: Colors.grey.shade400),
@@ -1127,22 +1164,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const Text(
                     'No Other Saved Goals',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'You can have multiple goals saved and switch between them anytime.',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    'Save multiple goals and switch between them anytime.',
+                    style: TextStyle(fontSize: 11.5, color: AppTheme.textSecondary),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             TextButton.icon(
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Add Goal'),
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: const Text('Add Goal', style: TextStyle(fontSize: 12)),
               onPressed: () => context.push('/onboarding'),
             ),
           ],
@@ -1168,43 +1208,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
+                      Expanded(
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                statusName,
+                                style: TextStyle(
+                                  fontSize: 9.0,
+                                  fontWeight: FontWeight.w800,
+                                  color: statusColor,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              goal.targetLevel ?? 'Intermediate',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppTheme.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                        child: Text(
-                          statusName,
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w800,
-                            color: statusColor,
-                            letterSpacing: 0.5,
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 17, color: Colors.grey),
+                            visualDensity: VisualDensity.compact,
+                            tooltip: 'Edit Goal',
+                            onPressed: () => _editGoal(context, goal),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        goal.targetLevel ?? 'Intermediate',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: AppTheme.textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 17, color: Colors.grey),
-                        visualDensity: VisualDensity.compact,
-                        tooltip: 'Edit Goal',
-                        onPressed: () => _editGoal(context, goal),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.delete_outline_rounded, size: 17, color: Colors.red.shade400),
-                        visualDensity: VisualDensity.compact,
-                        tooltip: 'Delete Goal',
-                        onPressed: () => _confirmDeleteGoal(context, goal),
+                          IconButton(
+                            icon: Icon(Icons.delete_outline_rounded, size: 17, color: Colors.red.shade400),
+                            visualDensity: VisualDensity.compact,
+                            tooltip: 'Delete Goal',
+                            onPressed: () => _confirmDeleteGoal(context, goal),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1212,10 +1264,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Text(
                     goal.title,
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 14.5,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 10),
                   ClipRRect(
@@ -1227,25 +1281,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       minHeight: 5,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '${goal.progressPercent.toInt()}% progress',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textSecondary,
+                      Flexible(
+                        child: Text(
+                          '${goal.progressPercent.toInt()}% progress',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       ElevatedButton.icon(
-                        icon: const Icon(Icons.play_circle_outline_rounded, size: 16),
-                        label: const Text('Set as Active'),
+                        icon: const Icon(Icons.play_circle_outline_rounded, size: 15),
+                        label: const Text('Set as Active', style: TextStyle(fontSize: 11.5)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey.shade900,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           visualDensity: VisualDensity.compact,
                         ),
@@ -1260,17 +1319,178 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         }),
         const SizedBox(height: 4),
         OutlinedButton.icon(
-          icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+          icon: const Icon(Icons.add_circle_outline_rounded, size: 17),
           label: const Text('Create Another Goal'),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppTheme.primaryAccent,
             side: const BorderSide(color: AppTheme.primaryAccent),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+            padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 18),
           ),
           onPressed: () => context.push('/onboarding'),
         ),
       ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 3. What I've Achieved: Milestones & Mastery Card
+  // ─────────────────────────────────────────────────────────────────────────────
+  Widget _buildAchievementsCard(
+    BuildContext context,
+    AsyncValue<dynamic> dashboardAsync,
+    AsyncValue<LearningPath?> learningPathAsync,
+    User? user,
+  ) {
+    final learningPath = learningPathAsync.valueOrNull;
+    // Collect all topics with null safety
+    final allTopics = learningPath?.sections
+        .where((s) => s.topics != null)
+        .expand((s) => s.topics)
+        .where((t) => t != null)
+        .toList() ?? [];
+    final completedTopics = allTopics.where((t) => t != null && t.status == TopicStatus.completed).toList();
+    final completedCount = completedTopics.length;
+    final totalCount = allTopics.length;
+
+    final avgMastery = completedTopics.isNotEmpty
+        ? (completedTopics.fold<double>(0.0, (acc, t) => acc + (t?.masteryScore ?? 0.0)) / completedTopics.length).toMasteryPercentage
+        : (((dashboardAsync.valueOrNull?.overallMastery ?? 0.0) > 1.0)
+            ? (dashboardAsync.valueOrNull?.overallMastery ?? 0.0).toInt()
+            : ((dashboardAsync.valueOrNull?.overallMastery ?? 0.0) * 100).toInt());
+
+    final dailyTargetMins = user?.dailyMinutes ?? 30;
+
+    return SkillTwinCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Image.asset(
+                'assets/mascots/twin_celebrate.webp',
+                width: 42,
+                height: 42,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.emoji_events_rounded,
+                  size: 34,
+                  color: Color(0xFFF59E0B),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Milestones & Mastery',
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      completedCount > 0
+                          ? '$completedCount concept${completedCount == 1 ? '' : 's'} mastered & verified'
+                          : 'Complete concepts to unlock verified milestones',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: AppTheme.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // 3 Metric Tiles (Responsive)
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricTile(
+                  icon: Icons.verified_rounded,
+                  iconColor: Colors.green,
+                  title: totalCount > 0 ? '$completedCount / $totalCount' : '$completedCount',
+                  subtitle: 'Mastered',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildMetricTile(
+                  icon: Icons.auto_awesome_rounded,
+                  iconColor: const Color(0xFFF59E0B),
+                  title: '$avgMastery%',
+                  subtitle: 'Retention',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildMetricTile(
+                  icon: Icons.timer_outlined,
+                  iconColor: AppTheme.primaryAccent,
+                  title: '${dailyTargetMins}m',
+                  subtitle: 'Daily Target',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: iconColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: iconColor.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 20, color: iconColor),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textSecondary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 

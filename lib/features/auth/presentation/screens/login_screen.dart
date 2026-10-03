@@ -2,8 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/theme/app_theme.dart';
+import '../../../../core/widgets/skilltwin_ui.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/auth_background.dart';
 
+/// Redesigned calm, brand-aligned SkillTwin Login Screen.
+///
+/// Hierarchy:
+///   [Central breathing space]
+///   [SkillTwin Mascot with subtle idle float]
+///   "Welcome back."
+///   [small supporting text]
+///   [Email input]
+///   [Password input]
+///   [Forgot password]
+///   [Primary button: Continue]
+///   [Secondary link: Don't have an account? Sign up]
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -16,36 +30,154 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
   bool _obscurePassword = true;
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
+  bool _isSubmitting = false;
+
+  late final AnimationController _idleController;
+  late final Animation<double> _floatAnimation;
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
+    _idleController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 2600),
+    )..repeat(reverse: true);
+
+    _floatAnimation = Tween<double>(begin: 0.0, end: -4.0).animate(
+      CurvedAnimation(parent: _idleController, curve: Curves.easeInOutSine),
     );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
-    );
-    _fadeController.forward();
   }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _fadeController.dispose();
+    _idleController.dispose();
     super.dispose();
+  }
+
+  Future<void> _submitLogin() async {
+    if (_isSubmitting) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() => _isSubmitting = true);
+
+    try {
+      await ref.read(authProvider.notifier).login(
+            _emailController.text.trim(),
+            _passwordController.text,
+          );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  void _showForgotPasswordSheet(BuildContext context) {
+    final email = _emailController.text.trim();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.lock_reset_rounded,
+                    color: AppColors.secondary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Reset Password',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              email.isNotEmpty
+                  ? 'We will send a password reset link to $email.'
+                  : 'Enter your email address to receive instructions to reset your password.',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            SkillTwinButton(
+              label: 'Send Reset Link',
+              height: 48,
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      email.isNotEmpty
+                          ? 'Password reset link sent to $email!'
+                          : 'Please enter your email in the login form first.',
+                    ),
+                    backgroundColor: AppColors.success,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final isLoading = authState.status == AuthStatus.loading;
+    final isLoading = authState.status == AuthStatus.loading || _isSubmitting;
+    final isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     ref.listen(authProvider, (previous, next) {
       if (next.status == AuthStatus.error && next.errorMessage != null) {
@@ -53,12 +185,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                const Icon(Icons.error_outline_rounded,
+                    color: Colors.white, size: 20),
                 const SizedBox(width: 12),
                 Expanded(child: Text(next.errorMessage!)),
               ],
             ),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -70,294 +203,227 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     });
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
+      backgroundColor: Colors.transparent,
+      body: SkillTwinAuthBackground(
+        child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 48),
+                  SizedBox(height: isKeyboardOpen ? 8 : 28),
 
-                  // ── Brand Header ──
-                  Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryAccent.withAlpha(25),
-                            shape: BoxShape.circle,
+                  // Mascot sitting directly in the visual environment with subtle idle breathing
+                  AnimatedBuilder(
+                    animation: _floatAnimation,
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: Offset(0, _floatAnimation.value),
+                        child: child,
+                      );
+                    },
+                    child: Image.asset(
+                      'assets/mascots/twin_home.webp',
+                      height: isKeyboardOpen ? 72 : 110,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.asset(
+                          'assets/images/mascot/twin_home.webp',
+                          height: isKeyboardOpen ? 72 : 110,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.psychology_alt_rounded,
+                            size: 64,
+                            color: AppColors.secondary,
                           ),
-                          child: const Icon(
-                            Icons.psychology,
-                            size: 56,
-                            color: AppTheme.primaryAccent,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'SkillTwin',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Your AI-powered learning companion',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textSecondary.withAlpha(180),
-                          ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
 
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 18),
 
-                  // ── Welcome Text ──
+                  // Conversational Welcome Heading
                   const Text(
-                    'Welcome back',
+                    'Welcome back.',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.4,
+                      height: 1.25,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    'Login to continue your journey',
+                  const Text(
+                    'Sign in to continue your personalized learning journey.',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 15,
-                      color: AppTheme.textSecondary.withAlpha(200),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textSecondary,
+                      height: 1.35,
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  // Inline Error Banner if present
+                  if (authState.status == AuthStatus.error &&
+                      authState.errorMessage != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.error_outline_rounded,
+                            size: 18,
+                            color: Colors.red.shade700,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              authState.errorMessage!,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.red.shade900,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
-                  // ── Email Field ──
-                  _buildLabel('Email'),
-                  const SizedBox(height: 8),
-                  TextFormField(
+                  const SizedBox(height: 24),
+
+                  // Email Input using SkillTwinTextField
+                  SkillTwinTextField(
                     controller: _emailController,
+                    label: 'Email',
+                    hintText: 'you@example.com',
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
-                    style: const TextStyle(fontSize: 15, color: AppTheme.textPrimary),
-                    decoration: _inputDecoration(
-                      hint: 'you@example.com',
-                      prefixIcon: Icons.email_outlined,
+                    prefixIcon: const Icon(
+                      Icons.mail_outline_rounded,
+                      size: 20,
+                      color: AppColors.mutedText,
                     ),
                     validator: (value) =>
                         (value == null || !value.contains('@'))
-                            ? 'Please enter a valid email'
+                            ? 'Please enter a valid email address'
                             : null,
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-                  // ── Password Field ──
-                  _buildLabel('Password'),
-                  const SizedBox(height: 8),
-                  TextFormField(
+                  // Password Input using SkillTwinTextField
+                  SkillTwinTextField(
                     controller: _passwordController,
+                    label: 'Password',
+                    hintText: '••••••••',
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
-                    style: const TextStyle(fontSize: 15, color: AppTheme.textPrimary),
-                    decoration: _inputDecoration(
-                      hint: '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022',
-                      prefixIcon: Icons.lock_outline,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: AppTheme.textSecondary,
-                          size: 20,
-                        ),
-                        onPressed: () =>
-                            setState(() => _obscurePassword = !_obscurePassword),
+                    onFieldSubmitted: (_) => _submitLogin(),
+                    prefixIcon: const Icon(
+                      Icons.lock_outline_rounded,
+                      size: 20,
+                      color: AppColors.mutedText,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: AppColors.mutedText,
+                        size: 20,
                       ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                     validator: (value) => (value == null || value.length < 6)
                         ? 'Password must be at least 6 characters'
                         : null,
                   ),
 
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 10),
 
-                  // ── Login Button ──
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            AppTheme.primaryAccent,
-                            Color(0xFFFF8F00),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryAccent.withAlpha(80),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                if (_formKey.currentState!.validate()) {
-                                  ref.read(authProvider.notifier).login(
-                                        _emailController.text.trim(),
-                                        _passwordController.text,
-                                      );
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                  // Forgot Password Link
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: () => _showForgotPasswordSheet(context),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Forgot password?',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.secondary,
                           ),
                         ),
-                        child: isLoading
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'Login',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
-                  // ── Divider ──
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'or',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary.withAlpha(160),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                    ],
+                  // Primary Button: Continue
+                  SkillTwinButton(
+                    label: 'Continue',
+                    isLoading: isLoading,
+                    height: 50,
+                    onPressed: isLoading ? null : _submitLogin,
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 18),
 
-                  // ── Sign Up Link ──
-                  Center(
-                    child: GestureDetector(
-                      onTap: () => context.push('/signup'),
-                      child: RichText(
-                        text: TextSpan(
+                  // Secondary Link: Don't have an account? Sign up
+                  GestureDetector(
+                    onTap: () => context.go('/signup'),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text.rich(
+                        TextSpan(
                           text: "Don't have an account? ",
                           style: TextStyle(
                             fontSize: 14,
-                            color: AppTheme.textSecondary.withAlpha(200),
+                            color: AppColors.textSecondary,
                           ),
-                          children: const [
+                          children: [
                             TextSpan(
                               text: 'Sign up',
                               style: TextStyle(
-                                color: AppTheme.primaryAccent,
-                                fontWeight: FontWeight.w700,
+                                color: AppColors.secondary,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: AppTheme.textPrimary,
-        letterSpacing: 0.3,
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData prefixIcon,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(
-        color: AppTheme.textSecondary.withAlpha(120),
-        fontSize: 14,
-      ),
-      prefixIcon: Icon(prefixIcon, color: AppTheme.textSecondary, size: 20),
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: AppTheme.surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade200),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade200),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppTheme.primaryAccent, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.red.shade400),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
       ),
     );
   }

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../app/theme/app_theme.dart';
+import '../../../../core/widgets/skilltwin_loading_view.dart';
+import '../../../../core/widgets/skilltwin_transition_switcher.dart';
+import '../../../../core/widgets/skilltwin_background.dart';
+import '../../../../core/widgets/skilltwin_twin.dart';
+import '../../../../core/widgets/skilltwin_markdown.dart';
 import '../providers/library_provider.dart';
-import '../../../../core/widgets/skilltwin_card.dart';
 
 class PersonalizedNoteScreen extends ConsumerWidget {
   final String resourceId;
@@ -12,40 +16,53 @@ class PersonalizedNoteScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final resourceAsync = ref.watch(resourceDetailProvider(resourceId));
-    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
-      body: resourceAsync.when(
-        data: (resource) => CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            _buildAppBar(context, resource),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSynthesisContext(context, resource),
-                    const SizedBox(height: 48),
-                    _buildNoteContent(context, resource),
-                    const SizedBox(height: 60),
-                    _buildNextActionFooter(context),
-                    const SizedBox(height: 40),
-                  ],
+      backgroundColor: Colors.transparent,
+      body: SkillTwinBackground(
+        child: SkillTwinTransitionSwitcher(
+        child: resourceAsync.when(
+          data: (resource) => CustomScrollView(
+            key: const ValueKey('personalized_note_content'),
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              _buildAppBar(context, resource, ref),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSynthesisContext(context, resource),
+                      const SizedBox(height: 48),
+                      _buildNoteContent(context, resource),
+                      const SizedBox(height: 60),
+                      _buildNextActionFooter(context),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
+          loading: () => const SkillTwinLoadingView.fullScreen(
+            key: ValueKey('personalized_note_loading'),
+            message: 'SkillTwin is preparing your next step.',
+            subMessage: 'Synthesizing personalized notes & takeaways...',
+          ),
+          error: (err, _) => Center(
+            key: const ValueKey('personalized_note_error'),
+            child: Text('Error: $err'),
+          ),
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildAppBar(BuildContext context, dynamic resource) {
+  Widget _buildAppBar(BuildContext context, dynamic resource, WidgetRef ref) {
+    final isSaved = ref.watch(libraryProvider).isSaved(resourceId);
+
     return SliverAppBar(
       expandedHeight: 120.0,
       floating: false,
@@ -56,18 +73,24 @@ class PersonalizedNoteScreen extends ConsumerWidget {
         icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
         onPressed: () => context.pop(),
       ),
-      flexibleSpace: FlexibleSpaceBar(
+      flexibleSpace: const FlexibleSpaceBar(
         centerTitle: false,
-        titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
-        title: const Text(
+        titlePadding: EdgeInsets.only(left: 56, bottom: 16),
+        title: Text(
           'Mentor Synthesis',
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18),
         ),
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.bookmark_border, color: Colors.black87),
-          onPressed: () {},
+          tooltip: isSaved ? 'Remove from saved' : 'Save note',
+          icon: Icon(
+            isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+            color: isSaved ? const Color(0xFF6366F1) : Colors.black87,
+          ),
+          onPressed: () {
+            ref.read(libraryProvider.notifier).toggleSave(resourceId);
+          },
         ),
         IconButton(
           icon: const Icon(Icons.share_outlined, color: Colors.black87),
@@ -88,26 +111,26 @@ class PersonalizedNoteScreen extends ConsumerWidget {
             borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 24,
                 offset: const Offset(0, 12),
               ),
             ],
-            border: Border.all(color: Colors.orange.withOpacity(0.1)),
+            border: Border.all(color: AppTheme.cardBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              const Row(
                 children: [
-                  const Icon(Icons.assistant, color: Colors.orange, size: 24),
-                  const SizedBox(width: 12),
+                  SkillTwinTwin(asset: TwinAsset.focused, size: 28),
+                  SizedBox(width: 12),
                   Text(
                     'WHY THIS NOTE IS UNIQUE',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: Colors.orange.shade900,
+                      color: AppTheme.primary,
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -116,7 +139,7 @@ class PersonalizedNoteScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               const Text(
                 'Instead of a standard summary, I have restructured this information to address your active learning blockers.',
-                style: TextStyle(fontSize: 15, height: 1.5, color: Colors.black87, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 15, height: 1.5, color: AppTheme.textPrimary, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 24),
               const Divider(height: 1),
@@ -158,26 +181,16 @@ class PersonalizedNoteScreen extends ConsumerWidget {
         const SizedBox(height: 16),
         Row(
           children: [
-            const CircleAvatar(radius: 10, backgroundColor: Colors.orange, child: Icon(Icons.assistant, size: 12, color: Colors.white)),
-            const SizedBox(width: 8),
+            const SkillTwinTwin(asset: TwinAsset.reading, size: 24),
+            const SizedBox(width: 10),
             Text('Synthesized by SkillTwin Mentor', style: TextStyle(color: Colors.grey.shade600, fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
-        const SizedBox(height: 40),
-        MarkdownBody(
+        const SizedBox(height: 32),
+        SkillTwinMarkdown(
           data: resource.generatedNotes ?? '# No notes available',
-          styleSheet: MarkdownStyleSheet(
-            p: const TextStyle(fontSize: 18, height: 1.7, color: Color(0xFF1A1A1A)),
-            h1: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, height: 2.5, color: Colors.black),
-            h2: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, height: 2.2, color: Colors.black87),
-            h3: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, height: 1.8, color: Colors.black87),
-            listBullet: const TextStyle(fontSize: 18, color: Colors.orange, fontWeight: FontWeight.bold),
-            blockquote: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: Colors.black54),
-            blockquoteDecoration: BoxDecoration(
-              border: const Border(left: BorderSide(color: Colors.orange, width: 4)),
-              color: Colors.orange.withOpacity(0.05),
-            ),
-          ),
+          selectable: true,
+          style: const TextStyle(fontSize: 16.5, height: 1.65, color: Color(0xFF1A1A1A)),
         ),
       ],
     );
@@ -187,7 +200,7 @@ class PersonalizedNoteScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: AppTheme.primary,
         borderRadius: BorderRadius.circular(32),
       ),
       child: Column(
@@ -201,15 +214,15 @@ class PersonalizedNoteScreen extends ConsumerWidget {
           Text(
             'Your mentor has prepared a validation session based on these notes.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14),
           ),
           const SizedBox(height: 32),
           ElevatedButton(
             onPressed: () => context.push('/session/verify_mastery'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
+              backgroundColor: AppTheme.primaryAccent,
               foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(60),
+              minimumSize: const Size.fromHeight(56),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               elevation: 0,
             ),

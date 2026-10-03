@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../providers/youtube_provider.dart';
 import '../providers/learning_path_provider.dart';
 import '../../../home/presentation/providers/home_provider.dart';

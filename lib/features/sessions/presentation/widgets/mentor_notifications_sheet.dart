@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/models/mentor_notification.dart';
+import '../../../../core/widgets/skilltwin_twin.dart';
 import '../providers/revision_provider.dart';
 
 class MentorNotificationsSheet extends ConsumerWidget {
@@ -52,14 +54,7 @@ class MentorNotificationsSheet extends ConsumerWidget {
           // Sheet Header
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.assistant_outlined, color: Colors.orange, size: 22),
-              ),
+              const SkillTwinTwin(asset: TwinAsset.focused, size: 36),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -70,12 +65,13 @@ class MentorNotificationsSheet extends ConsumerWidget {
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                     Text(
                       'Targeted interventions to prevent memory decay',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.black54,
+                        color: AppTheme.textSecondary,
                       ),
                     ),
                   ],
@@ -162,12 +158,12 @@ class _MentorNotificationCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: notification.isRead
             ? Colors.grey.shade50
-            : Colors.orange.withValues(alpha: 0.05),
+            : AppTheme.primaryAccent.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: notification.isRead
-              ? Colors.grey.shade200
-              : Colors.orange.withValues(alpha: 0.3),
+              ? AppTheme.cardBorder
+              : AppTheme.primaryAccent.withValues(alpha: 0.25),
         ),
       ),
       child: Column(
@@ -181,7 +177,7 @@ class _MentorNotificationCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.15),
+                      color: AppTheme.primaryAccent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -189,7 +185,7 @@ class _MentorNotificationCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: Colors.deepOrange,
+                        color: AppTheme.primaryAccent,
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -218,7 +214,7 @@ class _MentorNotificationCard extends StatelessWidget {
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 15,
-              color: Colors.black87,
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 6),
@@ -226,7 +222,7 @@ class _MentorNotificationCard extends StatelessWidget {
             notification.message,
             style: const TextStyle(
               fontSize: 13,
-              color: Colors.black87,
+              color: AppTheme.textSecondary,
               height: 1.4,
             ),
           ),
@@ -241,11 +237,11 @@ class _MentorNotificationCard extends StatelessWidget {
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
+                backgroundColor: AppTheme.primaryAccent,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),

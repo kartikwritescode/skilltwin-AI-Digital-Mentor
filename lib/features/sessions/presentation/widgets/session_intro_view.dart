@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/models/learning_session.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
+import '../../../../core/widgets/skilltwin_twin.dart';
+import '../../../../core/widgets/skilltwin_ui.dart';
 import '../providers/session_state_provider.dart';
 
 class SessionIntroView extends ConsumerWidget {
@@ -16,97 +19,97 @@ class SessionIntroView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPaddingWide),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.md),
+          Center(
+            child: SkillTwinMascot(
+              asset: TwinAsset.sessionStart,
+              size: 84,
+              speechBubble: "Let's explore this together!",
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
           Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
+                color: AppColors.secondary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.secondary.withValues(alpha: 0.2),
+                  width: 1,
+                ),
               ),
               child: Text(
-                session.type.name.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.orange,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  letterSpacing: 1.1,
+                session.type.name,
+                style: AppTypography.supporting.copyWith(
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             session.conceptTitle,
             textAlign: TextAlign.center,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+            style: AppTypography.headline.copyWith(
+              fontSize: 22,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.xs),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.timer_outlined, size: 18, color: Colors.grey),
-              const SizedBox(width: 8),
+              const Icon(Icons.timer_outlined, size: 15, color: AppColors.textSecondary),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 '${session.durationMinutes} minutes',
-                style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
+                style: AppTypography.supporting.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.lg),
           SkillTwinCard(
-            padding: const EdgeInsets.all(22),
+            padding: const EdgeInsets.all(AppSpacing.cardPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.assistant, color: Colors.orange),
-                    const SizedBox(width: 12),
+                    const Icon(Icons.auto_awesome, color: AppColors.secondary, size: 16),
+                    const SizedBox(width: AppSpacing.sm),
                     Text(
-                      'WHY THIS SESSION?',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange.shade900,
+                      'Why this session matters',
+                      style: AppTypography.label.copyWith(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   session.whyStatement,
-                  style: const TextStyle(fontSize: 15, height: 1.55),
+                  style: AppTypography.body,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
-          ElevatedButton(
+          const SizedBox(height: AppSpacing.xl),
+          SkillTwinButton(
+            label: 'Start Session',
             onPressed: () => ref.read(sessionStateProvider(sessionId).notifier).startSession(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              elevation: 0,
-            ),
-            child: const Text(
-              'START SESSION',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2),
-            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );

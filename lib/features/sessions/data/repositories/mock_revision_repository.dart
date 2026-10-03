@@ -188,5 +188,59 @@ class MockRevisionRepository implements RevisionRepository {
       _mockNotifications[index] = _mockNotifications[index].copyWith(isRead: true);
     }
   }
+
+  @override
+  Future<Map<String, dynamic>> getTeachbackFeedback({
+    required String conceptId,
+    required String userExplanation,
+    required List<Map<String, String>> conversationHistory,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Mock AI feedback response
+    return {
+      'mentorResponse': 'Good start. Can you explain why the base case is necessary?',
+      'accuracy': 0.75,
+      'shouldContinue': true,
+      'gaps': ['base case understanding', 'termination condition'],
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> submitTeachbackSession({
+    required String conceptId,
+    required int turnCount,
+    required double finalMasteryScore,
+    required List<Map<String, String>> conversationHistory,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // Update the item with new mastery score
+    final index = _mockItems.indexWhere((i) => i.conceptId == conceptId);
+    if (index != -1) {
+      final current = _mockItems[index];
+      _mockItems[index] = RevisionItem(
+        id: current.id,
+        conceptId: current.conceptId,
+        title: current.title,
+        mastery: finalMasteryScore,
+        risk: finalMasteryScore >= 0.8 ? RetentionRisk.low : (finalMasteryScore >= 0.6 ? RetentionRisk.medium : RetentionRisk.high),
+        lastRetrieval: DateTime.now(),
+        dueDate: DateTime.now().add(Duration(days: finalMasteryScore >= 0.8 ? 3 : 1)),
+        mentorNote: current.mentorNote,
+        whyToday: current.whyToday,
+        mentorPrompt: current.mentorPrompt,
+        estimatedMinutes: current.estimatedMinutes,
+        interval: finalMasteryScore >= 0.8 ? 3 : 1,
+        nextReviewText: finalMasteryScore >= 0.8 ? 'Next review in 3 days.' : 'Next review in 1 day.',
+      );
+    }
+
+    return {
+      'success': true,
+      'nextReviewDays': finalMasteryScore >= 0.8 ? 3 : 1,
+      'updatedMastery': finalMasteryScore,
+    };
+  }
 }
 

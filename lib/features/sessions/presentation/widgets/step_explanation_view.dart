@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/models/session_step.dart';
+import '../../../../core/widgets/skilltwin_markdown.dart';
 import '../providers/session_state_provider.dart';
 
 class StepExplanationView extends ConsumerWidget {
@@ -17,19 +19,29 @@ class StepExplanationView extends ConsumerWidget {
       children: [
         const Text(
           'EXPLAIN IT',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orange, letterSpacing: 1.2),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.primaryAccent,
+            letterSpacing: 1.2,
+          ),
         ),
-        const SizedBox(height: 16),
-        Text(
-          step.content['question'] ?? 'Explain this concept to your mentor.',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.4),
+        const SizedBox(height: 14),
+        SkillTwinMarkdown(
+          data: step.content['question'] ?? 'Explain this concept to your mentor.',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            height: 1.35,
+            color: AppTheme.textPrimary,
+          ),
         ),
-        const SizedBox(height: 12),
-        Text(
+        const SizedBox(height: 10),
+        const Text(
           'Use your own words. Your mentor will analyze your reasoning to identify any gaps.',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13.5, height: 1.4),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
         TextField(
           maxLines: 8,
           textCapitalization: TextCapitalization.sentences,
@@ -39,13 +51,21 @@ class StepExplanationView extends ConsumerWidget {
             fillColor: Colors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
-              borderSide: BorderSide.none,
+              borderSide: const BorderSide(color: AppTheme.cardBorder),
             ),
-            contentPadding: const EdgeInsets.all(24),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: const BorderSide(color: AppTheme.cardBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: const BorderSide(color: AppTheme.primaryAccent, width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.all(20),
           ),
           onChanged: (val) => ref.read(sessionStateProvider(sessionId).notifier).updateEvidence(step.id, val),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         _VoiceTeachButton(onPressed: () {
           context.push('/teach/${step.id}');
         }),
@@ -67,27 +87,43 @@ class _VoiceTeachButton extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.05),
+          color: AppTheme.primaryAccent.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.orange.withOpacity(0.1)),
+          border: Border.all(color: AppTheme.primaryAccent.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryAccent,
+                shape: BoxShape.circle,
+              ),
               child: const Icon(Icons.mic, color: Colors.white, size: 20),
             ),
-            const SizedBox(width: 16),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('TEACH WITH VOICE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.orange)),
-                Text('Faster and more natural', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'TEACH WITH VOICE',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                      color: AppTheme.primaryAccent,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Faster, conversational, and natural',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
             ),
-            const Spacer(),
-            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.orange),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.primaryAccent),
           ],
         ),
       ),

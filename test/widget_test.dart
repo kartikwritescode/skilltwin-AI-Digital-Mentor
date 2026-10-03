@@ -20,6 +20,8 @@ void main() {
       ),
     );
 
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
     expect(find.text('5 minutes for your future self.'), findsOneWidget);
   });

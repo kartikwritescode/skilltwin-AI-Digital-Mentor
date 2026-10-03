@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../app/theme/app_theme.dart';
+import 'skilltwin_twin.dart';
 
 class ErrorStateView extends StatelessWidget {
   final String title;
@@ -17,7 +19,8 @@ class ErrorStateView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cleanError = error.replaceFirst(RegExp(r'^(Exception:\s*|Failure:\s*)'), '').trim();
+    final cleanError =
+        error.replaceFirst(RegExp(r'^(Exception:\s*|Failure:\s*)'), '').trim();
     final lower = cleanError.toLowerCase();
 
     final isQuota = lower.contains('quota') ||
@@ -37,25 +40,13 @@ class ErrorStateView extends StatelessWidget {
             ? 'Backend Server Connecting'
             : title;
 
-    final effectiveIcon = isQuota
-        ? Icons.hourglass_top_rounded
-        : isWakingUp
-            ? Icons.cloud_sync_outlined
-            : Icons.cloud_off_outlined;
-
-    final iconColor = isQuota
-        ? const Color(0xFFE65100)
-        : isWakingUp
-            ? const Color(0xFF1976D2)
-            : Colors.redAccent;
-
     final effectiveMessage = isQuota
         ? (cleanError.isNotEmpty
             ? cleanError
             : 'The AI model quota limit was reached. Please wait a few moments before retrying, or verify your Gemini API key.')
         : isWakingUp
             ? 'The backend server is waking up from free-tier inactivity (~30-50s). Please tap below to retry.'
-            : cleanError;
+            : (cleanError.isNotEmpty ? cleanError : 'Oops, I lost the trail.');
 
     final buttonLabel = isQuota
         ? 'Try Again'
@@ -63,62 +54,66 @@ class ErrorStateView extends StatelessWidget {
             ? 'Retry Connection'
             : retryLabel;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
+    final bottomInset = AppSpacing.calculateBottomNavInset(context);
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SkillTwinTwin.confused(
+                size: 88,
+                speechBubble: "Oops, I lost the trail.",
+                isDecorative: true,
               ),
-              child: Icon(
-                effectiveIcon,
-                size: 40,
-                color: iconColor,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              effectiveTitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Color(0xFF212121),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              effectiveMessage,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 13,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                onRetry();
-              },
-              icon: const Icon(Icons.refresh, size: 18),
-              label: Text(buttonLabel),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6D00),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                effectiveTitle,
+                textAlign: TextAlign.center,
+                style: AppTypography.headlineSmall.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.xs),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 340),
+                child: Text(
+                  effectiveMessage,
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySmall,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              ElevatedButton.icon(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  onRetry();
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(buttonLabel, style: AppTypography.button),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: 12,
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

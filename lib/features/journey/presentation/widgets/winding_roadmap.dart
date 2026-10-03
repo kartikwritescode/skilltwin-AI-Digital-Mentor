@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/models/journey_node.dart';
 import 'roadmap_node_widget.dart';
 import 'winding_path_painter.dart';
@@ -36,9 +37,7 @@ class WindingRoadmap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double width = constraints.maxWidth;
+    final double width = MediaQuery.sizeOf(context).width;
         final double centerX = width / 2;
         final double horizontalOffset = width * 0.25;
         const double verticalSpacing = 160.0;
@@ -73,7 +72,7 @@ class WindingRoadmap extends StatelessWidget {
                   painter: WindingPathPainter(
                     nodePositions: positions,
                     nodes: nodes,
-                    pathColor: Colors.orange.withOpacity(0.4),
+                    pathColor: AppTheme.primaryAccent.withValues(alpha: 0.35),
                   ),
                 ),
                 // Nodes with Detour and Fast-Track Badges
@@ -101,7 +100,5 @@ class WindingRoadmap extends StatelessWidget {
             ),
           ),
         );
-      },
-    );
   }
 }

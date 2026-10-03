@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/models/journey_node.dart';
 
 class RoadmapNodeWidget extends StatelessWidget {
@@ -34,29 +35,29 @@ class RoadmapNodeWidget extends StatelessWidget {
       icon = const Icon(Icons.fast_forward_rounded, color: Color(0xFF2E7D32), size: 22);
       isDashedGreen = true;
     } else if (isRemediation) {
-      nodeColor = const Color(0xFFFFF8E1);
-      icon = const Icon(Icons.build_circle_outlined, color: Color(0xFFFF8F00), size: 24);
+      nodeColor = const Color(0xFFFDF2F8);
+      icon = const Icon(Icons.healing_rounded, color: Color(0xFFEC4899), size: 22);
       elevation = 4;
     } else {
       switch (node.status) {
         case NodeState.completed:
-          nodeColor = Colors.orange;
+          nodeColor = AppTheme.positive;
           icon = const Icon(Icons.check, color: Colors.white, size: 20);
           break;
         case NodeState.current:
-          nodeColor = Colors.orange;
-          icon = const Icon(Icons.play_arrow, color: Colors.white, size: 24);
+          nodeColor = AppTheme.primaryAccent;
+          icon = const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26);
           elevation = 8;
           break;
         case NodeState.needsRevision:
         case NodeState.needsAttention:
-          nodeColor = Colors.orangeAccent;
+          nodeColor = const Color(0xFFF59E0B);
           icon = const Icon(Icons.priority_high, color: Colors.white, size: 20);
           break;
         case NodeState.available:
         case NodeState.upcoming:
           nodeColor = Colors.white;
-          icon = Icon(Icons.circle, color: Colors.orange.withOpacity(0.3), size: 12);
+          icon = Icon(Icons.circle, color: AppTheme.primaryAccent.withValues(alpha: 0.35), size: 12);
           break;
         case NodeState.locked:
           nodeColor = Colors.grey.shade200;
@@ -76,13 +77,15 @@ class RoadmapNodeWidget extends StatelessWidget {
     Border? border;
     if (!isDashedGreen) {
       if (isRemediation) {
-        border = Border.all(color: const Color(0xFFFFB300), width: 3.5);
-      } else if (node.status == NodeState.available ||
-          node.status == NodeState.upcoming ||
-          node.status == NodeState.locked) {
-        border = Border.all(color: Colors.grey.shade300, width: 3);
+        border = Border.all(color: const Color(0xFFEC4899), width: 3);
+      } else if (node.status == NodeState.current) {
+        border = Border.all(color: AppTheme.primary, width: 3.5);
+      } else if (node.status == NodeState.completed) {
+        border = Border.all(color: const Color(0xFF059669), width: 3);
+      } else if (node.status == NodeState.needsRevision || node.status == NodeState.needsAttention) {
+        border = Border.all(color: const Color(0xFFD97706), width: 3);
       } else {
-        border = Border.all(color: Colors.orange, width: 3);
+        border = Border.all(color: Colors.grey.shade300, width: 2.5);
       }
     }
 
@@ -120,8 +123,8 @@ class RoadmapNodeWidget extends StatelessWidget {
               child: Material(
                 elevation: elevation,
                 shadowColor: isRemediation
-                    ? const Color(0xFFFFB300).withOpacity(0.5)
-                    : Colors.orange.withOpacity(0.4),
+                    ? const Color(0xFFEC4899).withValues(alpha: 0.5)
+                    : AppTheme.primaryAccent.withValues(alpha: 0.4),
                 shape: const CircleBorder(),
                 child: circleContent,
               ),
@@ -288,24 +291,26 @@ class _PulseWrapperState extends State<_PulseWrapper> with SingleTickerProviderS
   Widget build(BuildContext context) {
     if (!widget.active) return widget.child;
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.orange.withOpacity(0.4 * (1 - _controller.value)),
-                blurRadius: 20 * _controller.value,
-                spreadRadius: 10 * _controller.value,
-              ),
-            ],
-          ),
-          child: child,
-        );
-      },
-      child: widget.child,
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryAccent.withValues(alpha: 0.4 * (1 - _controller.value)),
+                  blurRadius: 20 * _controller.value,
+                  spreadRadius: 10 * _controller.value,
+                ),
+              ],
+            ),
+            child: child,
+          );
+        },
+        child: widget.child,
+      ),
     );
   }
 }

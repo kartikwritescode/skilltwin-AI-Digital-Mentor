@@ -1,87 +1,105 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../app/theme/app_theme.dart';
+import 'skilltwin_twin.dart';
 
+/// Clean, friendly empty state view for lists, journeys, or dashboards.
+/// Keeps the mascot naturally integrated with breathing room and clear typography.
 class EmptyStateView extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
   final String title;
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
   final double iconSize;
+  final TwinAsset? mascotAsset;
 
   const EmptyStateView({
     super.key,
-    this.icon = Icons.psychology_outlined,
+    this.icon,
     required this.title,
     required this.message,
     this.actionLabel,
     this.onAction,
-    this.iconSize = 56.0,
+    this.iconSize = 48.0,
+    this.mascotAsset = TwinAsset.empty,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Center(
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 24.0),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xl,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF6D00).withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
+              if (mascotAsset != null)
+                SkillTwinTwin(
+                  asset: mascotAsset!,
+                  size: 96,
+                  isDecorative: true,
+                  floatAnimation: true,
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon ?? Icons.psychology_outlined,
+                    size: iconSize,
+                    color: AppColors.secondary,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  size: iconSize,
-                  color: const Color(0xFFFF6D00),
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.2,
-                  color: const Color(0xFF212121),
+                style: AppTypography.headlineSmall.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
-                  height: 1.45,
+              const SizedBox(height: AppSpacing.xs),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySmall,
                 ),
               ),
               if (actionLabel != null && onAction != null) ...[
-                const SizedBox(height: 20),
-                OutlinedButton.icon(
+                const SizedBox(height: AppSpacing.lg),
+                ElevatedButton.icon(
                   onPressed: () {
-                    HapticFeedback.selectionClick();
+                    HapticFeedback.lightImpact();
                     onAction!();
                   },
-                  icon: const Icon(Icons.arrow_forward, size: 16),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
                   label: Text(
                     actionLabel!,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: AppTypography.button,
                   ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFF6D00),
-                    side: const BorderSide(color: Color(0xFFFF6D00), width: 1.5),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: 12,
+                    ),
+                    elevation: 0,
                   ),
                 ),
               ],

@@ -1,610 +1,494 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/learning_path_provider.dart';
+import '../providers/journey_provider.dart';
+import '../../../home/presentation/providers/home_provider.dart';
 import '../../../../core/models/learning_path.dart';
-import '../../../../core/widgets/skilltwin_card.dart';
-import '../../../../core/widgets/mentor_app_bar_action.dart';
-import '../../../../core/widgets/skeleton_loader.dart';
+import '../../../../core/models/journey_node.dart';
 import '../../../../core/widgets/error_state_view.dart';
-import '../../../../core/utils/mastery_format.dart';
+import '../../../../core/widgets/skilltwin_twin.dart';
+import '../../../../app/theme/app_theme.dart';
+import '../../../../core/widgets/skilltwin_loading_view.dart';
+import '../../../../core/widgets/skilltwin_transition_switcher.dart';
+import '../../../../core/widgets/skilltwin_refresh_indicator.dart';
 import '../widgets/youtube_import_modal.dart';
+import '../widgets/journey_theme_models.dart';
+import '../widgets/journey_header.dart';
+import '../widgets/gamified_roadmap_viewport.dart';
 
-class JourneyScreen extends ConsumerWidget {
+/// The redesigned Journey / Learning Roadmap Screen.
+/// Delivers a polished, gamified "learning world" progression inspired by
+/// modern mobile games and Apple-quality UI design.
+class JourneyScreen extends ConsumerStatefulWidget {
   const JourneyScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<JourneyScreen> createState() => _JourneyScreenState();
+}
+
+class _JourneyScreenState extends ConsumerState<JourneyScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _entranceController;
+  late final Animation<double> _entranceAnimation;
+  final ScrollController _scrollController = ScrollController();
+  bool _hasAutoScrolled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+
+    _entranceAnimation = CurvedAnimation(
+      parent: _entranceController,
+      curve: Curves.easeOutCubic,
+    );
+
+    _entranceController.forward();
+  }
+
+  @override
+  void dispose() {
+    _entranceController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onTopicTapped(RoadmapTopicItem topic) {
+    HapticFeedback.lightImpact();
+    try {
+      context.push('/journey/topic/${topic.id}');
+    } catch (_) {
+      // In unit test environments without GoRouter ancestor
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final activePathAsync = ref.watch(activeLearningPathProvider);
+    final journeyState = ref.watch(journeyProvider);
+    final homeData = ref.watch(homeDashboardProvider).valueOrNull;
+    final int streakDays = homeData?.streakDays ?? 12;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
-      appBar: AppBar(
-        title: const Text('Learning Journey'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.playlist_add, color: Color(0xFFFF0000)),
-            tooltip: 'Import YouTube Playlist',
-            onPressed: () => YouTubeImportModal.show(context),
-          ),
-          const MentorAppBarAction(),
-        ],
-      ),
-      body: RefreshIndicator(
+      backgroundColor: const Color(0xFFF8F9FD),
+      body: SkillTwinRefreshIndicator(
+        message: 'SkillTwin is updating your journey...',
+        edgeOffset: 0,
         onRefresh: () async {
-          HapticFeedback.lightImpact();
           ref.invalidate(activeLearningPathProvider);
+          ref.invalidate(journeyProvider);
+          _entranceController.reset();
+          _entranceController.forward();
         },
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: activePathAsync.when(
-              data: (path) {
-                if (path == null) {
-                  return _buildEmptyState(context);
-                }
-                return _buildPathContent(context, path);
-              },
-              loading: () => const SingleChildScrollView(
-                padding: EdgeInsets.all(20.0),
-                child: SkeletonCardGroup(count: 4, height: 120),
-              ),
-              error: (err, _) => ErrorStateView(
-                error: err.toString(),
-                onRetry: () => ref.invalidate(activeLearningPathProvider),
-              ),
+        child: SkillTwinTransitionSwitcher(
+          child: activePathAsync.when(
+            data: (path) {
+              if (path != null && path.sections.isNotEmpty) {
+                return KeyedSubtree(
+                  key: const ValueKey('journey_active_roadmap'),
+                  child: _buildRoadmapView(
+                    title: path.title,
+                    modules: _convertLearningPathToModules(path),
+                    streakDays: streakDays,
+                    isYouTube: path.isYouTubeCurriculum,
+                    channelName: path.channelName,
+                    isStrictMode: path.isStrictMode,
+                  ),
+                );
+              }
+
+              // Fallback to journeyProvider nodes if present
+              if (journeyState.nodes.isNotEmpty) {
+                return KeyedSubtree(
+                  key: const ValueKey('journey_nodes_roadmap'),
+                  child: _buildRoadmapView(
+                    title: 'Adaptive Learning Path',
+                    modules: _convertJourneyNodesToModules(journeyState.nodes),
+                    streakDays: streakDays,
+                    isYouTube: false,
+                  ),
+                );
+              }
+
+              // Empty state when no roadmap has been generated yet
+              return KeyedSubtree(
+                key: const ValueKey('journey_empty_state'),
+                child: _buildEmptyState(context),
+              );
+            },
+            loading: () => const SkillTwinLoadingView.fullScreen(
+              key: ValueKey('journey_loading'),
+              message: 'SkillTwin is preparing your next step.',
+              subMessage: 'Mapping your learning world...',
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(32.0),
-      children: [
-        const SizedBox(height: 60),
-        Icon(Icons.map_outlined, size: 72, color: Colors.grey.shade400),
-        const SizedBox(height: 24),
-        const Text(
-          'No Learning Path Active',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF212121),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Set a target outcome to have your AI mentor generate a curriculum, or import any YouTube playlist to learn sequentially.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.4),
-        ),
-        const SizedBox(height: 32),
-        Center(
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            alignment: WrapAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () => context.push('/onboarding'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF6D00),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text(
-                  'Set Learning Goal',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => YouTubeImportModal.show(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFFF0000),
-                  side: const BorderSide(color: Color(0xFFFF0000)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: const Icon(Icons.play_circle_fill, size: 18),
-                label: const Text(
-                  'Import YouTube Playlist',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPathContent(BuildContext context, LearningPath path) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      children: [
-        _RoadmapHeader(path: path),
-        const SizedBox(height: 20),
-        ...path.sections.map((section) => _SectionGroup(
-              section: section,
-              onTopicTap: (topic) {
-                HapticFeedback.lightImpact();
-                context.push('/journey/topic/${topic.id}');
-              },
-            )),
-        const SizedBox(height: 40),
-      ],
-    );
-  }
-}
-
-class _RoadmapHeader extends StatelessWidget {
-  final LearningPath path;
-
-  const _RoadmapHeader({required this.path});
-
-  @override
-  Widget build(BuildContext context) {
-    final progressPct = (path.progress * 100).toInt();
-    final isYouTube = path.isYouTubeCurriculum;
-
-    LearningTopic? nextTopic;
-    for (final section in path.sections) {
-      for (final topic in section.topics) {
-        if (topic.status != TopicStatus.completed) {
-          nextTopic = topic;
-          break;
-        }
-      }
-      if (nextTopic != null) break;
-    }
-
-    return SkillTwinCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isYouTube
-                      ? const Color(0xFFFF0000).withValues(alpha: 0.1)
-                      : const Color(0xFFFF6D00).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  isYouTube ? Icons.play_circle_fill : Icons.explore,
-                  color: isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isYouTube
-                          ? 'YOUTUBE PLAYLIST CURRICULUM'
-                          : 'ACTIVE ROADMAP (${path.targetLevel.toUpperCase()})',
-                      style: TextStyle(
-                        color: isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                    Text(
-                      path.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Color(0xFF212121),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '$progressPct%',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
-                ),
-              ),
-            ],
-          ),
-          if (isYouTube && path.channelName != null) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.person, size: 13, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Created by ${path.channelName}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-                if (path.isStrictMode)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.blueGrey.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.blueGrey.shade200),
-                    ),
-                    child: Text(
-                      '🔒 Strict Sequence',
-                      style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade800, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: path.progress.clamp(0.0, 1.0),
-              minHeight: 7,
-              backgroundColor: isYouTube
-                  ? const Color(0xFFFF0000).withValues(alpha: 0.12)
-                  : const Color(0xFFFF6D00).withValues(alpha: 0.12),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  '${path.completedTopics} of ${path.totalTopics} ${isYouTube ? 'videos' : 'topics'} completed',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (path.estimatedDuration != null) ...[
-                const SizedBox(width: 8),
-                Text(
-                  path.estimatedDuration!,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
-            ],
-          ),
-          if (nextTopic != null) ...[
-            const SizedBox(height: 16),
-            InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                HapticFeedback.lightImpact();
-                context.push('/journey/topic/${nextTopic!.id}');
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isYouTube
-                      ? const Color(0xFFFF0000).withValues(alpha: 0.06)
-                      : const Color(0xFFFF6D00).withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isYouTube
-                        ? const Color(0xFFFF0000).withValues(alpha: 0.25)
-                        : const Color(0xFFFF6D00).withValues(alpha: 0.25),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.play_arrow_rounded,
-                      color: isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
-                      size: 24,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'CONTINUE LEARNING',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.8,
-                              color: isYouTube ? const Color(0xFFFF0000) : const Color(0xFFFF6D00),
-                            ),
-                          ),
-                          Text(
-                            nextTopic.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionGroup extends StatelessWidget {
-  final LearningSection section;
-  final ValueChanged<LearningTopic> onTopicTap;
-
-  const _SectionGroup({
-    required this.section,
-    required this.onTopicTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final sectionPct = (section.progress * 100).toInt();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 16.0, bottom: 8.0, left: 4.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  section.title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF212121),
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: sectionPct == 100
-                      ? Colors.green.shade50
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$sectionPct%',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: sectionPct == 100
-                        ? Colors.green.shade800
-                        : Colors.grey.shade700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (section.description != null && section.description!.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10.0, left: 4.0),
-            child: Text(
-              section.description!,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ),
-        ...section.topics.map((topic) => _TopicTile(
-              topic: topic,
-              onTap: () => onTopicTap(topic),
-            )),
-      ],
-    );
-  }
-}
-
-class _TopicTile extends StatelessWidget {
-  final LearningTopic topic;
-  final VoidCallback onTap;
-
-  const _TopicTile({
-    required this.topic,
-    required this.onTap,
-  });
-
-  String _formatDuration(int seconds) {
-    final m = seconds ~/ 60;
-    final s = seconds % 60;
-    if (m >= 60) {
-      final h = m ~/ 60;
-      final remM = m % 60;
-      return '${h}h ${remM}m';
-    }
-    return '${m}m ${s.toString().padLeft(2, '0')}s';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: SkillTwinCard(
-        onTap: onTap,
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            _StatusIcon(status: topic.status),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            error: (err, _) => KeyedSubtree(
+              key: const ValueKey('journey_error'),
+              child: Stack(
                 children: [
-                  Text(
-                    topic.title,
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF212121),
-                    ),
+                  JourneyHeader(
+                    title: 'Roadmap Error',
+                    streakDays: streakDays,
                   ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          topic.difficulty.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                      ),
-                      if (topic.isYouTubeVideo) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF0000).withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.play_circle_fill,
-                                  size: 10, color: Color(0xFFFF0000)),
-                              const SizedBox(width: 3),
-                              Text(
-                                'Video #${(topic.position ?? 0) + 1}',
-                                style: const TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFFF0000),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (topic.durationSeconds > 0)
-                          Text(
-                            _formatDuration(topic.durationSeconds),
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                      ],
-                      if (topic.status == TopicStatus.completed &&
-                          topic.masteryScore > 0)
-                        Text(
-                          '${topic.masteryScore.toMasteryPercentage}% mastery',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                    ],
+                  Padding(
+                    padding: const EdgeInsets.only(top: 100),
+                    child: ErrorStateView(
+                      error: err.toString(),
+                      onRetry: () {
+                        ref.invalidate(activeLearningPathProvider);
+                        ref.invalidate(journeyProvider);
+                      },
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-          ],
+          ),
         ),
       ),
     );
   }
-}
 
-class _StatusIcon extends StatelessWidget {
-  final TopicStatus status;
-
-  const _StatusIcon({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    switch (status) {
-      case TopicStatus.completed:
-        return Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.check_circle, color: Colors.green, size: 20),
-        );
-      case TopicStatus.learning:
-        return Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFF6D00).withValues(alpha: 0.12),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.play_circle_fill,
-              color: Color(0xFFFF6D00), size: 20),
-        );
-      case TopicStatus.needsRevision:
-        return Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.history_edu, color: Colors.amber.shade800, size: 20),
-        );
-      case TopicStatus.notStarted:
-        return Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.circle_outlined, color: Colors.grey.shade400, size: 20),
-        );
+  Widget _buildRoadmapView({
+    required String title,
+    required List<RoadmapModuleItem> modules,
+    required int streakDays,
+    bool isYouTube = false,
+    String? channelName,
+    bool isStrictMode = false,
+  }) {
+    // Schedule initial smooth scroll to active node once layout builds
+    if (!_hasAutoScrolled) {
+      _hasAutoScrolled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initialScrollToCurrent(modules);
+      });
     }
+
+    int total = 0;
+    int completed = 0;
+    for (final m in modules) {
+      total += m.topics.length;
+      completed += m.topics.where((t) => t.visualState.isCompleted).length;
+    }
+    final int? progressPct = total > 0 ? ((completed / total) * 100).toInt() : null;
+
+    return Stack(
+      children: [
+        // Gamified Winding Map Viewport
+        GamifiedRoadmapViewport(
+          modules: modules,
+          scrollController: _scrollController,
+          entranceAnimation: _entranceAnimation,
+          isYouTube: isYouTube,
+          channelName: channelName,
+          isStrictMode: isStrictMode,
+          onTopicTap: _onTopicTapped,
+          onModuleTap: (module) {
+            // Smoothly scroll towards selected module
+            _scrollToModule(module, modules);
+          },
+        ),
+
+        // Floating Translucent Gradient Header Bar (Softly blends into roadmap)
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: JourneyHeader(
+            title: title.isNotEmpty ? title : 'My Learning Journey',
+            streakDays: streakDays,
+            progressPercentage: progressPct,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _initialScrollToCurrent(List<RoadmapModuleItem> modules) {
+    if (!mounted) return;
+    int targetModuleIndex = 0;
+    int targetTopicIndex = 0;
+    bool found = false;
+
+    for (int m = 0; m < modules.length; m++) {
+      for (int t = 0; t < modules[m].topics.length; t++) {
+        if (modules[m].topics[t].visualState.isCurrent) {
+          targetModuleIndex = m;
+          targetTopicIndex = t;
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+
+    if (found && (targetModuleIndex > 0 || targetTopicIndex > 1)) {
+      // Calculate approximate Y position and scroll smoothly
+      final approxY = (targetModuleIndex * 480.0) + (targetTopicIndex * 110.0);
+      _scrollController.animateTo(
+        math.max(0.0, approxY - 180.0),
+        duration: const Duration(milliseconds: 900),
+        curve: Curves.easeInOutCubic,
+      );
+    }
+  }
+
+  void _scrollToModule(
+      RoadmapModuleItem module, List<RoadmapModuleItem> modules) {
+    final idx = modules.indexOf(module);
+    if (idx != -1) {
+      final approxY = idx * 480.0;
+      _scrollController.animateTo(
+        math.max(0.0, approxY - 80.0),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOutCubic,
+      );
+    }
+  }
+
+  List<RoadmapModuleItem> _convertLearningPathToModules(LearningPath path) {
+    // 1. Identify the single active current topic in the entire curriculum
+    String? currentTopicId;
+    for (final section in path.sections) {
+      for (final topic in section.topics) {
+        if (topic.status == TopicStatus.learning) {
+          currentTopicId = topic.id;
+          break;
+        }
+      }
+      if (currentTopicId != null) break;
+    }
+
+    // If no topic is explicitly marked as 'learning', pick the first incomplete topic
+    if (currentTopicId == null) {
+      for (final section in path.sections) {
+        for (final topic in section.topics) {
+          if (topic.status != TopicStatus.completed) {
+            currentTopicId = topic.id;
+            break;
+          }
+        }
+        if (currentTopicId != null) break;
+      }
+    }
+
+    bool previousTopicCompletedOrCurrent = true;
+    final List<RoadmapModuleItem> moduleItems = [];
+
+    final totalTopicsCount = path.totalTopics;
+    int overallIndex = 0;
+
+    for (int s = 0; s < path.sections.length; s++) {
+      final section = path.sections[s];
+      final theme = ModuleRegionTheme.forIndex(s);
+
+      final List<RoadmapTopicItem> topics = [];
+      for (int t = 0; t < section.topics.length; t++) {
+        final topic = section.topics[t];
+        final isCurrent = topic.id == currentTopicId;
+
+        final item = RoadmapTopicItem.fromLearningTopic(
+          topic: topic,
+          sectionIndex: s,
+          topicIndex: t,
+          isPathActiveCurrent: isCurrent,
+          isPreviousCompletedOrCurrent: previousTopicCompletedOrCurrent,
+          isFirstInModule: t == 0,
+          isLastOverall: overallIndex == totalTopicsCount - 1,
+        );
+
+        topics.add(item);
+        overallIndex++;
+
+        // Update sequence tracker
+        if (item.visualState.isCompleted || item.visualState.isCurrent) {
+          previousTopicCompletedOrCurrent = true;
+        } else {
+          previousTopicCompletedOrCurrent = false;
+        }
+      }
+
+      final completedCount =
+          section.topics.where((t) => t.status == TopicStatus.completed).length;
+
+      moduleItems.add(
+        RoadmapModuleItem(
+          id: section.id,
+          title: section.title,
+          description: section.description,
+          orderIndex: s,
+          progress: section.progress,
+          completedCount: completedCount,
+          totalCount: section.topics.length,
+          theme: theme,
+          topics: topics,
+        ),
+      );
+    }
+
+    return moduleItems;
+  }
+
+  List<RoadmapModuleItem> _convertJourneyNodesToModules(
+      List<JourneyNode> nodes) {
+    // Group JourneyNode items into modules by phase
+    final Map<String, List<JourneyNode>> grouped = {};
+    for (final node in nodes) {
+      final phaseKey = (node.phase != null && node.phase!.isNotEmpty)
+          ? node.phase!
+          : 'Core Curriculum';
+      grouped.putIfAbsent(phaseKey, () => []).add(node);
+    }
+
+    final List<RoadmapModuleItem> modules = [];
+    int phaseIndex = 0;
+
+    grouped.forEach((phaseTitle, phaseNodes) {
+      final theme = ModuleRegionTheme.forIndex(phaseIndex);
+      final List<RoadmapTopicItem> topics = [];
+
+      for (int t = 0; t < phaseNodes.length; t++) {
+        final node = phaseNodes[t];
+        topics.add(
+          RoadmapTopicItem.fromJourneyNode(
+            node: node,
+            sectionIndex: phaseIndex,
+            topicIndex: t,
+            isLastOverall: (phaseIndex == grouped.length - 1) &&
+                (t == phaseNodes.length - 1),
+          ),
+        );
+      }
+
+      final completed = topics.where((t) => t.visualState.isCompleted).length;
+      final progress = topics.isNotEmpty ? completed / topics.length : 0.0;
+
+      modules.add(
+        RoadmapModuleItem(
+          id: 'phase_$phaseIndex',
+          title: phaseTitle,
+          description: 'Master key milestones in $phaseTitle',
+          orderIndex: phaseIndex,
+          progress: progress,
+          completedCount: completed,
+          totalCount: topics.length,
+          theme: theme,
+          topics: topics,
+        ),
+      );
+      phaseIndex++;
+    });
+
+    return modules;
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Stack(
+      children: [
+        const Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: JourneyHeader(
+            title: 'Learning Journey',
+          ),
+        ),
+        Center(
+          child: ListView(
+            padding: const EdgeInsets.only(top: 140, left: 32, right: 32),
+            children: [
+              const SizedBox(height: 32),
+              Center(
+                child: const SkillTwinTwin(
+                  asset: TwinAsset.journeyWalk,
+                  size: 110,
+                  speechBubble: "Ready for your next journey? 🎒",
+                  isDecorative: true,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'No Active Learning Roadmap',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E2238),
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Set a target outcome to have your AI mentor sculpt a continuous winding journey world, or import any YouTube playlist to learn sequentially.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 32),
+              Center(
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => context.push('/onboarding'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 2,
+                      ),
+                      icon: const Icon(Icons.rocket_launch_rounded, size: 18),
+                      label: const Text(
+                        'Set Learning Goal',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => YouTubeImportModal.show(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFFF0000),
+                        side: const BorderSide(
+                          color: Color(0xFFFF0000),
+                          width: 1.5,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.play_circle_fill, size: 18),
+                      label: const Text(
+                        'Import YouTube Playlist',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

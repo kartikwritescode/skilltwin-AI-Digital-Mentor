@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/models/session_result.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
+import '../../../../core/widgets/skilltwin_twin.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/mastery_format.dart';
+import '../../../../core/widgets/skilltwin_markdown.dart';
 
 class SessionResultScreen extends ConsumerWidget {
   final SessionResult result;
@@ -64,11 +67,11 @@ class SessionResultScreen extends ConsumerWidget {
                     context.pop();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF6D00),
+                    backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
+                    elevation: 1,
                   ),
                   child: const Text(
                     'RETURN TO JOURNEY',
@@ -113,10 +116,10 @@ class _ResultHeader extends StatelessWidget {
     final isLowScore = result.accuracyScore < 0.4 || result.masteryDelta <= 0;
     final isModerate = result.accuracyScore >= 0.4 && result.accuracyScore < 0.75;
     
-    final iconColor = isLowScore ? Colors.amber.shade700 : (isModerate ? Colors.orange : Colors.green);
-    final bgColor = isLowScore ? Colors.amber.shade50 : (isModerate ? Colors.orange.shade50 : Colors.green.shade50);
-    final icon = isLowScore ? Icons.error_outline_rounded : (isModerate ? Icons.lightbulb_outline_rounded : Icons.verified_rounded);
-    
+    final mascotAsset = isLowScore
+        ? TwinAsset.thinking
+        : (isModerate ? TwinAsset.focused : TwinAsset.celebrating);
+
     final title = isLowScore 
         ? 'Session Reviewed' 
         : (isModerate ? 'Good Practice Attempt' : 'Mastery Demonstrated');
@@ -129,19 +132,20 @@ class _ResultHeader extends StatelessWidget {
 
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: bgColor,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: iconColor, size: 48),
+        SkillTwinTwin(
+          asset: mascotAsset,
+          size: 96,
+          isDecorative: true,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         Text(
           title,
           textAlign: TextAlign.center,
-          style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold, letterSpacing: -0.5),
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+            color: AppTheme.textPrimary,
+          ),
         ),
         const SizedBox(height: 8),
         Text(
@@ -289,10 +293,10 @@ class _FocusAreasList extends StatelessWidget {
       children: [
         const Text(
           'STILL NEEDS WORK',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textMuted, letterSpacing: 1.1),
         ),
         const SizedBox(height: 12),
-        ...result.focusAreas.map((item) => _ResultItem(text: item, icon: Icons.info_outline, color: Colors.orange)),
+        ...result.focusAreas.map((item) => _ResultItem(text: item, icon: Icons.info_outline, color: AppTheme.accentBlue)),
       ],
     );
   }
@@ -317,7 +321,7 @@ class _ResultItem extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 15, height: 1.4, color: Colors.black87),
+              style: const TextStyle(fontSize: 15, height: 1.4, color: AppTheme.textPrimary),
             ),
           ),
         ],
@@ -335,14 +339,14 @@ class _MentorRecommendation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.orange.withOpacity(0.2)),
+        border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.orange.withOpacity(0.05),
+            color: AppTheme.primaryAccent.withOpacity(0.04),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -351,16 +355,16 @@ class _MentorRecommendation extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.assistant, color: Colors.orange, size: 24),
-              const SizedBox(width: 12),
+              SkillTwinTwin(asset: TwinAsset.focused, size: 28),
+              SizedBox(width: 12),
               Text(
                 'MENTOR\'S NEXT STEP',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: Colors.orange.shade900,
+                  color: AppTheme.primary,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -369,7 +373,7 @@ class _MentorRecommendation extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             result.mentorRecommendation,
-            style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
+            style: const TextStyle(fontSize: 15, height: 1.5, color: AppTheme.textPrimary),
           ),
         ],
       ),
@@ -389,14 +393,14 @@ class _StepEvaluationsList extends StatelessWidget {
       children: [
         const Row(
           children: [
-            Icon(Icons.quiz_outlined, size: 18, color: Colors.orange),
+            Icon(Icons.quiz_outlined, size: 18, color: AppTheme.primaryAccent),
             SizedBox(width: 8),
             Text(
               'STEP-BY-STEP REVIEW & CORRECT ANSWERS',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey,
+                color: AppTheme.textMuted,
                 letterSpacing: 1.1,
               ),
             ),
@@ -550,11 +554,11 @@ class _StepEvaluationsList extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline, size: 15, color: Colors.orange),
+                      const Icon(Icons.info_outline, size: 15, color: AppTheme.primaryAccent),
                       const SizedBox(width: 6),
                       Expanded(
-                        child: Text(
-                          step.explanation,
+                        child: SkillTwinMarkdown(
+                          data: step.explanation,
                           style: TextStyle(
                             fontSize: 13,
                             height: 1.4,

@@ -20,6 +20,7 @@ dependencies:
   file_picker: ^11.0.3
   intl: ^0.18.1
   flutter_markdown: ^0.6.18+3
+  markdown: ^7.1.1
   record: ^6.2.1
   path_provider: ^2.1.2
   flutter_local_notifications: ^22.3.0
@@ -40,3 +41,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/skilltwin_app_background.webp
+    - assets/images/streak/
+    - assets/images/journey/
+    - assets/images/mascot/
+    - assets/mascots/
+

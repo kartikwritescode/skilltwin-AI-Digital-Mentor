@@ -4,14 +4,21 @@ import '../../data/repositories/goal_repository_provider.dart';
 import '../../../../core/models/goal.dart';
 import '../../../../core/models/mentor_message.dart';
 import '../../../../core/models/home_dashboard.dart';
+import 'today_task_provider.dart';
 
 export '../../data/repositories/goal_repository_provider.dart' show goalRepositoryProvider;
 export '../../../mentor/presentation/providers/mentor_recommendation_provider.dart'
     show nextBestActionProvider, currentMentorRecommendationProvider;
+export 'today_task_provider.dart';
 
 final homeDashboardProvider = FutureProvider<HomeDashboardData>((ref) async {
   final repository = ref.watch(homeRepositoryProvider);
-  return repository.getHomeDashboard();
+  final data = await repository.getHomeDashboard();
+  // Automatically synchronize with the reactive today task queue
+  try {
+    ref.read(todayTaskStateProvider.notifier).syncWithDashboard(data);
+  } catch (_) {}
+  return data;
 });
 
 final activeGoalProvider = FutureProvider<Goal?>((ref) async {

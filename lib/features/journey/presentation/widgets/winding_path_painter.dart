@@ -11,7 +11,7 @@ class WindingPathPainter extends CustomPainter {
     required this.nodePositions,
     this.nodes,
     this.animationValue = 1.0,
-    this.pathColor = Colors.orange,
+    this.pathColor = const Color(0xFF6366F1),
   });
 
   @override
@@ -31,7 +31,7 @@ class WindingPathPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final bypassedPaint = Paint()
-      ..color = const Color(0xFF4CAF50).withOpacity(0.5) // Light green fast-track
+      ..color = const Color(0xFF4CAF50).withValues(alpha: 0.5) // Light green fast-track
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import '../providers/mentor_provider.dart';
 import '../../../../core/models/mentor_message.dart';
 import '../../../../core/models/learning_path.dart';
 import '../../../../core/services/voice_service.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
+import '../../../../core/widgets/skilltwin_loading_view.dart';
+import '../../../../core/widgets/skilltwin_twin.dart';
+import '../../../../core/widgets/skilltwin_background.dart';
+import '../../../../core/widgets/skilltwin_markdown.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../home/presentation/providers/home_provider.dart';
 import '../../../journey/presentation/providers/learning_path_provider.dart';
@@ -23,6 +27,7 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late AnimationController _pulseController;
+  MentorVoiceService? _voiceService;
 
   @override
   void initState() {
@@ -34,7 +39,9 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
 
     // Attach listeners to voice service
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final voiceService = ref.read(mentorVoiceServiceProvider);
+      _voiceService = voiceService;
 
       voiceService.onListeningChanged = (isListening) {
         if (mounted) {
@@ -64,9 +71,8 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
 
   @override
   void dispose() {
-    final voiceService = ref.read(mentorVoiceServiceProvider);
-    voiceService.stopListening();
-    voiceService.stopSpeaking();
+    _voiceService?.stopListening();
+    _voiceService?.stopSpeaking();
     _messageController.dispose();
     _scrollController.dispose();
     _pulseController.dispose();
@@ -179,7 +185,7 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
@@ -208,7 +214,7 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF6D00).withValues(alpha: 0.12),
+                    color: AppTheme.primaryAccent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
@@ -216,7 +222,7 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFFFF6D00),
+                      color: AppTheme.primaryAccent,
                       letterSpacing: 0.4,
                     ),
                   ),
@@ -252,7 +258,7 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
                     ? Icons.volume_up_rounded
                     : Icons.volume_off_rounded,
                 color: isVoiceMode
-                    ? const Color(0xFFFF6D00)
+                    ? AppTheme.primaryAccent
                     : const Color(0xFF9CA3AF),
               ),
               onPressed: () {
@@ -285,17 +291,17 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
           ),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Column(
+      body: SkillTwinBackground(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Column(
             children: [
               Expanded(
                 child: mentorState.isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFFF6D00),
-                        ),
+                    ? const SkillTwinLoadingView.fullScreen(
+                        message: 'SkillTwin is preparing your next step.',
+                        subMessage: 'Connecting to your AI Mentor...',
                       )
                     : mentorState.messages.isEmpty
                         ? _buildEmptyState(userName, goal?.title, activeTopic)
@@ -367,8 +373,9 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEmptyState(
     String userName,
@@ -383,28 +390,11 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          const SizedBox(height: 20),
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFF6D00), Color(0xFFFF9E80)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF6D00).withValues(alpha: 0.25),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Icon(Icons.smart_toy_rounded, color: Colors.white, size: 32),
-            ),
+          const SizedBox(height: 16),
+          SkillTwinTwin(
+            asset: TwinAsset.mentor,
+            size: 88,
+            isDecorative: true,
           ),
           const SizedBox(height: 16),
           Text(
@@ -447,7 +437,7 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
                 Row(
                   children: [
                     const Icon(Icons.track_changes_rounded,
-                        size: 16, color: Color(0xFFFF6D00)),
+                        size: 16, color: AppTheme.primaryAccent),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -572,10 +562,10 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF6D00).withValues(alpha: 0.1),
+                    color: AppTheme.primaryAccent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, color: const Color(0xFFFF6D00), size: 18),
+                  child: Icon(icon, color: AppTheme.primaryAccent, size: 18),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -682,31 +672,31 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
                   hintStyle: TextStyle(
                     fontSize: 13.5,
                     color: isListening
-                        ? const Color(0xFFFF6D00)
+                        ? AppTheme.primaryAccent
                         : const Color(0xFF9CA3AF),
                     fontWeight:
                         isListening ? FontWeight.w600 : FontWeight.normal,
                   ),
                   filled: true,
                   fillColor: isListening
-                      ? const Color(0xFFFF6D00).withValues(alpha: 0.06)
+                      ? AppTheme.primaryAccent.withValues(alpha: 0.06)
                       : const Color(0xFFF3F4F6),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: isListening
-                        ? const BorderSide(color: Color(0xFFFF6D00), width: 1.5)
+                        ? const BorderSide(color: AppTheme.primaryAccent, width: 1.5)
                         : BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: isListening
-                        ? const BorderSide(color: Color(0xFFFF6D00), width: 1.5)
+                        ? const BorderSide(color: AppTheme.primaryAccent, width: 1.5)
                         : BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: const BorderSide(
-                        color: Color(0xFFFF6D00), width: 1.5),
+                        color: AppTheme.primaryAccent, width: 1.5),
                   ),
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -727,13 +717,13 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
                     height: 44,
                     decoration: BoxDecoration(
                       color: isListening
-                          ? const Color(0xFFFF6D00)
+                          ? AppTheme.primaryAccent
                           : const Color(0xFFF3F4F6),
                       shape: BoxShape.circle,
                       boxShadow: isListening
                           ? [
                               BoxShadow(
-                                color: const Color(0xFFFF6D00).withValues(
+                                color: AppTheme.primaryAccent.withValues(
                                   alpha: 0.3 + 0.3 * _pulseController.value,
                                 ),
                                 blurRadius: 10 + 6 * _pulseController.value,
@@ -758,7 +748,7 @@ class _MentorScreenState extends ConsumerState<MentorScreen>
               width: 44,
               height: 44,
               decoration: const BoxDecoration(
-                color: Color(0xFFFF6D00),
+                color: AppTheme.primary,
                 shape: BoxShape.circle,
               ),
               child: IconButton(
@@ -801,17 +791,10 @@ class _MessageBubble extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isMentor) ...[
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFF6D00),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.smart_toy_rounded,
-                        size: 19, color: Colors.white),
-                  ),
+                SkillTwinTwin(
+                  asset: TwinAsset.mentor,
+                  size: 34,
+                  isDecorative: true,
                 ),
                 const SizedBox(width: 10),
               ],
@@ -823,7 +806,7 @@ class _MessageBubble extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: isMentor ? Colors.white : const Color(0xFFFF6D00),
+                    color: isMentor ? Colors.white : AppTheme.primary,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(18),
                       topRight: const Radius.circular(18),
@@ -855,7 +838,7 @@ class _MessageBubble extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFFFF6D00),
+                                  color: AppTheme.primaryAccent,
                                   letterSpacing: 0.3,
                                 ),
                                 maxLines: 1,
@@ -872,7 +855,7 @@ class _MessageBubble extends StatelessWidget {
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
                                   color: isSpeaking
-                                      ? const Color(0xFFFF6D00)
+                                      ? AppTheme.primaryAccent
                                           .withValues(alpha: 0.15)
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(12),
@@ -883,7 +866,7 @@ class _MessageBubble extends StatelessWidget {
                                       : Icons.volume_up_outlined,
                                   size: 18,
                                   color: isSpeaking
-                                      ? const Color(0xFFFF6D00)
+                                      ? AppTheme.primaryAccent
                                       : const Color(0xFF9CA3AF),
                                 ),
                               ),
@@ -893,52 +876,13 @@ class _MessageBubble extends StatelessWidget {
                         const SizedBox(height: 8),
                       ],
                       isMentor
-                          ? MarkdownBody(
+                          ? SkillTwinMarkdown(
                               data: message.text,
                               selectable: true,
-                              styleSheet: MarkdownStyleSheet(
-                                p: const TextStyle(
-                                  color: Color(0xFF1F2937),
-                                  fontSize: 14.5,
-                                  height: 1.5,
-                                ),
-                                strong: const TextStyle(
-                                  color: Color(0xFF111827),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                h1: const TextStyle(
-                                  color: Color(0xFF111827),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 17,
-                                ),
-                                h2: const TextStyle(
-                                  color: Color(0xFF111827),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15.5,
-                                ),
-                                h3: const TextStyle(
-                                  color: Color(0xFF111827),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14.5,
-                                ),
-                                code: TextStyle(
-                                  backgroundColor: Colors.grey.shade100,
-                                  color: const Color(0xFFD84315),
-                                  fontSize: 13,
-                                  fontFamily: 'monospace',
-                                ),
-                                codeblockDecoration: BoxDecoration(
-                                  color: const Color(0xFF1E1E1E),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                blockquote: TextStyle(
-                                  color: Colors.grey.shade800,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                                listBullet: const TextStyle(
-                                  color: Color(0xFFFF6D00),
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              style: const TextStyle(
+                                color: Color(0xFF1F2937),
+                                fontSize: 14.5,
+                                height: 1.5,
                               ),
                             )
                           : Text(
@@ -1017,7 +961,7 @@ class _MentorActionCard extends StatelessWidget {
               message.conceptTitle!.toUpperCase(),
               style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFFFF6D00),
+                color: AppTheme.primaryAccent,
                 letterSpacing: 0.5,
               ),
             ),
@@ -1067,7 +1011,7 @@ class _MentorActionCard extends StatelessWidget {
                       // Navigate or launch practice
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF6D00),
+                      backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),
@@ -1110,7 +1054,7 @@ class _MentorActionCard extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.psychology_rounded, color: Color(0xFFFF6D00)),
+            Icon(Icons.psychology_rounded, color: AppTheme.primaryAccent),
             SizedBox(width: 8),
             Text('Why this action?'),
           ],
@@ -1123,7 +1067,7 @@ class _MentorActionCard extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Understood',
-                style: TextStyle(color: Color(0xFFFF6D00))),
+                style: TextStyle(color: AppTheme.primaryAccent)),
           ),
         ],
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -1141,10 +1085,9 @@ class _TypingIndicator extends StatelessWidget {
       padding: EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: Color(0xFFFF6D00),
-            radius: 16,
-            child: Icon(Icons.smart_toy_rounded, size: 18, color: Colors.white),
+          SkillTwinTwin.thinking(
+            size: 32,
+            isDecorative: true,
           ),
           SizedBox(width: 8),
           _AnimatedDots(),
@@ -1207,7 +1150,7 @@ class _AnimatedDotsState extends State<_AnimatedDots>
                 width: 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF6D00).withValues(
+                  color: AppTheme.primaryAccent.withValues(
                     alpha: (index == 0 && _controller.value < 0.3) ||
                             (index == 1 &&
                                 _controller.value >= 0.3 &&

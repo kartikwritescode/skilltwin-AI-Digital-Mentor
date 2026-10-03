@@ -87,6 +87,43 @@ class TwinDashboardData {
     );
   }
 
+  factory TwinDashboardData.fromHomeData(dynamic homeData) {
+    // Allows fast synchronous synthesis of baseline Twin state from available Home data
+    final isNew = homeData.isNewLearner == true && (homeData.topicsCompleted ?? 0) == 0;
+    final int topicsDone = (homeData.topicsCompleted ?? 0) as int;
+    final double mastery = ((homeData.overallMastery ?? 0.0) as num).toDouble();
+    final double progress = ((homeData.overallProgress ?? 0.0) as num).toDouble();
+    final int streak = (homeData.streakDays ?? 0) as int;
+    final String level = homeData.targetLevel?.toString() ?? 'Beginner';
+    final List<String> weak = (homeData.weakAreas as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [];
+    final List<String> ins = (homeData.insights as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [];
+
+    return TwinDashboardData(
+      userId: '',
+      hasSufficientData: !isNew,
+      overallMastery: mastery,
+      learningLevel: level,
+      strongestAreas: topicsDone > 0
+          ? [
+              AreaMasteryItem(
+                name: homeData.currentModuleName?.toString() ?? 'Current Curriculum',
+                masteryScore: (mastery * 100).clamp(0.0, 100.0),
+                status: 'In Progress',
+              ),
+            ]
+          : const [],
+      weakestAreas: weak
+          .map((w) => AreaMasteryItem(name: w, masteryScore: 50.0, status: 'Needs Revision'))
+          .toList(),
+      conceptsAtRisk: weak,
+      learningVelocity: topicsDone > 0 ? (topicsDone / 4.0).clamp(0.5, 5.0) : 0.0,
+      consistencyStreak: streak,
+      knowledgeCoverage: progress,
+      verifiedEvidenceCount: topicsDone,
+      insights: ins,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'user_id': userId,
         'has_sufficient_data': hasSufficientData,

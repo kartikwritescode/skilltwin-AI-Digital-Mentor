@@ -110,4 +110,76 @@ class RevisionRepositoryImpl implements RevisionRepository {
       await _mockFallback.markNotificationAsRead(id);
     }
   }
+
+  @override
+  Future<Map<String, dynamic>> getTeachbackFeedback({
+    required String conceptId,
+    required String userExplanation,
+    required List<Map<String, String>> conversationHistory,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        '/revision/$conceptId/teachback/feedback',
+        data: {
+          'user_explanation': userExplanation,
+          'conversation_history': conversationHistory,
+        },
+      );
+
+      if (response.data != null && response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+
+      // Fallback mock response
+      return _mockFallback.getTeachbackFeedback(
+        conceptId: conceptId,
+        userExplanation: userExplanation,
+        conversationHistory: conversationHistory,
+      );
+    } catch (_) {
+      return _mockFallback.getTeachbackFeedback(
+        conceptId: conceptId,
+        userExplanation: userExplanation,
+        conversationHistory: conversationHistory,
+      );
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> submitTeachbackSession({
+    required String conceptId,
+    required int turnCount,
+    required double finalMasteryScore,
+    required List<Map<String, String>> conversationHistory,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        '/revision/$conceptId/teachback/complete',
+        data: {
+          'turn_count': turnCount,
+          'final_mastery_score': finalMasteryScore,
+          'conversation_history': conversationHistory,
+        },
+      );
+
+      if (response.data != null && response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+
+      // Fallback mock response
+      return _mockFallback.submitTeachbackSession(
+        conceptId: conceptId,
+        turnCount: turnCount,
+        finalMasteryScore: finalMasteryScore,
+        conversationHistory: conversationHistory,
+      );
+    } catch (_) {
+      return _mockFallback.submitTeachbackSession(
+        conceptId: conceptId,
+        turnCount: turnCount,
+        finalMasteryScore: finalMasteryScore,
+        conversationHistory: conversationHistory,
+      );
+    }
+  }
 }

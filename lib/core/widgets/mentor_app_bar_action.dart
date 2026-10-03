@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import '../../app/theme/app_theme.dart';
 
 class MentorAppBarAction extends StatelessWidget {
   final bool hasActiveRecommendation;
@@ -27,10 +28,10 @@ class MentorAppBarAction extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF6D00).withValues(alpha: 0.1),
+              color: AppTheme.primaryAccent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: const Color(0xFFFF6D00).withValues(alpha: 0.3),
+                color: AppTheme.primaryAccent.withValues(alpha: 0.25),
                 width: 1.0,
               ),
             ),
@@ -43,14 +44,14 @@ class MentorAppBarAction extends StatelessWidget {
                     const Icon(
                       Icons.assistant_outlined,
                       size: 18,
-                      color: Color(0xFFFF6D00),
+                      color: AppTheme.primaryAccent,
                     ),
                     if (hasActiveRecommendation)
                       Container(
                         width: 7,
                         height: 7,
                         decoration: const BoxDecoration(
-                          color: Color(0xFFFF6D00),
+                          color: AppTheme.primaryAccent,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -62,7 +63,7 @@ class MentorAppBarAction extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFFFF6D00),
+                    color: AppTheme.primaryAccent,
                   ),
                 ),
               ],
