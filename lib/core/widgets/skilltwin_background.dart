@@ -21,7 +21,7 @@ class _SkillTwinBackgroundScope extends InheritedWidget {
 /// - Explicitly excluded from the Journey/Roadmap screen which has its own
 ///   gamified world background.
 class SkillTwinBackground extends StatelessWidget {
-  static const String assetPath = 'assets/images/skilltwin_app_background.webp';
+  static const String assetPath = 'assets/images/bg3.jpg'; // whole app background
 
   /// The child content placed above the background wallpaper.
   final Widget? child;

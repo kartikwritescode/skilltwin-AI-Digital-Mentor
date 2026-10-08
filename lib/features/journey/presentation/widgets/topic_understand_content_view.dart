@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/models/topic_detail.dart';
 import '../../../../core/widgets/skilltwin_card.dart';
-import '../../../../core/widgets/skilltwin_markdown.dart';
 import 'topic_learn_mascot_header.dart';
 
 /// Redesigned Understand / Learn topic content view.
@@ -75,14 +74,6 @@ class _TopicUnderstandContentViewState extends State<TopicUnderstandContentView>
                   _buildLearningObjectivesCard(widget.topic.learningObjectives),
                 ],
 
-                const SizedBox(height: 16),
-                _buildIntuitionCard(),
-
-                const SizedBox(height: 16),
-                _buildExplanationSection(),
-
-                const SizedBox(height: 16),
-                _buildPitfallCard(),
 
                 // ── 4. Optional: What resource can help me? (Recommended Video) ──
                 if (hasValidVideo) ...[
@@ -182,10 +173,10 @@ class _TopicUnderstandContentViewState extends State<TopicUnderstandContentView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 8),
           child: Row(
-            children: const [
+            children: [
               Icon(Icons.video_library_rounded, size: 15, color: Color(0xFF64748B)),
               SizedBox(width: 6),
               Expanded(
@@ -512,180 +503,6 @@ class _TopicUnderstandContentViewState extends State<TopicUnderstandContentView>
 
 
 
-  // ---------------------------------------------------------------------------
-  // 3. Intuition Callout Card
-  // ---------------------------------------------------------------------------
-  Widget _buildIntuitionCard() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEEF2FF),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.primaryAccent.withValues(alpha: 0.25),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryAccent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.lightbulb_rounded,
-                  size: 16,
-                  color: AppTheme.primaryAccent,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Think of it this way...',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.primaryAccent,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Mastering ${widget.topic.title} builds the mental scaffolding for real-world application.',
-            style: const TextStyle(
-              fontSize: 13.5,
-              height: 1.45,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // 4. Topic Explanation Markdown Section
-  // ---------------------------------------------------------------------------
-  Widget _buildExplanationSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.border.withValues(alpha: 0.8),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.auto_stories_rounded,
-                      size: 16, color: AppTheme.primaryAccent),
-                  SizedBox(width: 8),
-                  Text(
-                    'CONCEPT GUIDE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                      color: AppTheme.primaryAccent,
-                    ),
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                tooltip: 'Regenerate explanation',
-                onPressed: widget.onRefreshExplanation,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                color: AppTheme.textSecondary,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SkillTwinMarkdown(
-            data: widget.explanation.content,
-            style: const TextStyle(
-              fontSize: 14.5,
-              height: 1.6,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // 5. Pitfall Callout Card
-  // ---------------------------------------------------------------------------
-  Widget _buildPitfallCard() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFFDE68A),
-          width: 1.5,
-        ),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                size: 18,
-                color: Color(0xFFD97706),
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  "Here's the part that usually trips people up.",
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFFB45309),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Keep an eye on edge cases and common misconceptions as you progress into practice questions.',
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.45,
-              color: Color(0xFF78350F),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   Widget _buildKeyTakeawaysBox() {
     final takeaways = topic.keyConcepts.isNotEmpty
         ? topic.keyConcepts

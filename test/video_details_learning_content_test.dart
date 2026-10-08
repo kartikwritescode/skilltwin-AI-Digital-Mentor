@@ -246,16 +246,16 @@ When a function calls itself, memory is allocated on the runtime call stack for 
       // Structure 1: Topic title
       expect(find.text(testTopicWithoutVideo.title), findsOneWidget);
 
-      // Structure 2: Short explanation (Intuition callout + Objectives)
-      expect(find.text('Think of it this way...'), findsOneWidget);
+      // Structure 2: Objectives
       expect(find.text('LEARNING OBJECTIVES'), findsOneWidget);
 
       // Structure 3: Video is omitted cleanly when not available
       expect(find.text('Curriculum Video Lesson'), findsNothing);
 
-      // Structure 4: Learning content
-      expect(find.textContaining('Understanding the Core Idea'), findsOneWidget);
-      expect(find.textContaining('runtime call stack'), findsOneWidget);
+      // Structure 4: Intuition & concept guide callouts removed as requested
+      expect(find.text('Think of it this way...'), findsNothing);
+      expect(find.text('CONCEPT GUIDE'), findsNothing);
+      expect(find.text("Here's the part that usually trips people up."), findsNothing);
 
       // Structure 5: Examples & Key Takeaways
       expect(find.text('KEY TAKEAWAYS'), findsOneWidget);
@@ -264,8 +264,7 @@ When a function calls itself, memory is allocated on the runtime call stack for 
       final actionButton = find.text('I understand this — Continue to Practice');
       expect(actionButton, findsOneWidget);
 
-      // Verify list padding includes calculated safe bottom inset
-      final listView = tester.widget<ListView>(find.byType(ListView).first);
+      // Verify bottom action button is clickable
       await tester.ensureVisible(actionButton);
       await tester.pumpAndSettle();
       await tester.tap(actionButton);
@@ -273,7 +272,7 @@ When a function calls itself, memory is allocated on the runtime call stack for 
       expect(completedTapped, isTrue);
     });
 
-    testWidgets('3. Renders 20 paragraphs very long content and scrolls to end without overlap',
+    testWidgets('3. Renders content and scrolls to end without overlap',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
@@ -300,7 +299,7 @@ When a function calls itself, memory is allocated on the runtime call stack for 
 
       // Top content is present initially
       expect(find.text(testTopicWithoutVideo.title), findsOneWidget);
-      expect(find.textContaining('Section 1: In-depth Insight'), findsOneWidget);
+      expect(find.text('LEARNING OBJECTIVES'), findsOneWidget);
 
       // Verify list padding includes calculated safe bottom inset
       final listView = tester.widget<ListView>(find.byType(ListView).first);

@@ -208,7 +208,6 @@ The parameter update rule is expressed as:
       addTearDown(tester.view.resetPhysicalSize);
 
       bool completedCalled = false;
-      bool refreshCalled = false;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -217,7 +216,7 @@ The parameter update rule is expressed as:
               topic: testTopic,
               explanation: testExplanation,
               onUnderstandCompleted: () => completedCalled = true,
-              onRefreshExplanation: () => refreshCalled = true,
+              onRefreshExplanation: () {},
             ),
           ),
         ),
@@ -230,15 +229,10 @@ The parameter update rule is expressed as:
       expect(find.text('LEARNING OBJECTIVES'), findsOneWidget);
       expect(find.text('Understand the loss surface intuition'), findsOneWidget);
 
-      // Verify Intuition Callout
-      expect(find.text('Think of it this way...'), findsOneWidget);
-
-      // Verify Explanation Markdown
-      expect(find.textContaining('The Core Intuition'), findsOneWidget);
-      expect(find.textContaining('foggy hillside'), findsOneWidget);
-
-      // Verify Pitfall Callout
-      expect(find.text("Here's the part that usually trips people up."), findsOneWidget);
+      // Verify removed boxes are absent
+      expect(find.text('Think of it this way...'), findsNothing);
+      expect(find.text('CONCEPT GUIDE'), findsNothing);
+      expect(find.text("Here's the part that usually trips people up."), findsNothing);
 
       // Verify Key Takeaways
       expect(find.text('KEY TAKEAWAYS'), findsOneWidget);
@@ -261,11 +255,6 @@ The parameter update rule is expressed as:
       await tester.tap(find.text('I understand this — Continue to Practice'));
       await tester.pump();
       expect(completedCalled, isTrue);
-
-      // Tap refresh CTA
-      await tester.tap(find.byTooltip('Regenerate explanation'));
-      await tester.pump();
-      expect(refreshCalled, isTrue);
     });
 
     testWidgets('TopicLearnLoadingView renders loading GIF and friendly text after delay',

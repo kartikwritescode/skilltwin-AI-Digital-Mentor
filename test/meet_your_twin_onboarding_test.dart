@@ -150,6 +150,20 @@ void main() {
 
       // Step 7: Ready screen ("Your journey is ready.")
       expect(find.text('Your journey is ready.'), findsOneWidget);
+      expect(find.text('TARGET GOAL'), findsOneWidget);
+      expect(find.text('Ready to Launch'), findsOneWidget);
+      expect(find.text('Flutter & Mobile Apps'), findsOneWidget);
+      expect(find.text('DAILY PACE'), findsOneWidget);
+      expect(find.text('30 min / day'), findsOneWidget);
+      expect(find.text('STARTING LEVEL'), findsOneWidget);
+      expect(find.text('I know the basics'), findsOneWidget);
+      expect(find.text('TARGET TIMELINE'), findsOneWidget);
+      expect(find.text('VIDEO FOCUS'), findsOneWidget);
+      expect(find.text('Only when helpful'), findsOneWidget);
+      expect(find.text('CURRICULUM LEARNING MODES'), findsOneWidget);
+      expect(find.text('Build projects'), findsOneWidget);
+      expect(find.text('WHAT YOUR JOURNEY INCLUDES'), findsOneWidget);
+      expect(find.textContaining('Modular Progression'), findsOneWidget);
       expect(find.text('Start My Journey →'), findsOneWidget);
     });
 
